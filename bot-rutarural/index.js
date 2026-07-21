@@ -30,20 +30,34 @@ const PARADAS = [
 ];
 
 const PRECIOS = { 'Chaihuín': 800, 'La Aguada': 500, 'Huiro': 1200, 'Corral': 0, 'Cruce Amargos': 500, 'San Carlos': 500, 'Los Liles': 500, 'Palo Muerto': 500, 'Huape': 1200, 'Reserva Costera': 1200, 'Kamañ Mapu': 1200 };
-const TIPO_SERV = { 'Chaihuín': 'Subsidiado MTT', 'La Aguada': 'Subsidiado MTT', 'Huiro': 'Subsidiado MTT' };
+
+function tipoServ(dest) {
+  const m = { 'Chaihuín': 'Subsidiado MTT', 'La Aguada': 'Subsidiado MTT', 'Huiro': 'Subsidiado MTT', 'Corral': 'Subsidiado MTT' };
+  return m[dest] || 'Servicio Particular';
+}
+
+function precioServ(dest) {
+  return PRECIOS[dest] || 0;
+}
 
 const HORARIOS_IDA = [
-  { salida: '07:00', destino: 'Chaihuín' }, { salida: '07:00', destino: 'La Aguada' },
-  { salida: '08:30', destino: 'Huiro' },    { salida: '11:00', destino: 'La Aguada' },
-  { salida: '12:00', destino: 'Chaihuín' }, { salida: '14:00', destino: 'Huiro' },
-  { salida: '16:00', destino: 'La Aguada' }, { salida: '17:00', destino: 'Chaihuín' },
-  { salida: '19:00', destino: 'La Aguada' }
+  { salida: '07:00', destino: 'Chaihuín',   tipo: 'subsidiado' },
+  { salida: '07:00', destino: 'La Aguada',   tipo: 'subsidiado' },
+  { salida: '08:30', destino: 'Huiro',       tipo: 'subsidiado' },
+  { salida: '11:00', destino: 'La Aguada',   tipo: 'subsidiado' },
+  { salida: '12:00', destino: 'Chaihuín',    tipo: 'subsidiado' },
+  { salida: '14:00', destino: 'Huiro',        tipo: 'particular' },
+  { salida: '16:00', destino: 'La Aguada',   tipo: 'subsidiado' },
+  { salida: '17:00', destino: 'Chaihuín',    tipo: 'particular' },
+  { salida: '19:00', destino: 'La Aguada',   tipo: 'subsidiado' }
 ];
 
 const HORARIOS_VUELTA = [
-  { salida: '06:00', destino: 'Corral' }, { salida: '09:00', destino: 'Corral' },
-  { salida: '11:30', destino: 'Corral' }, { salida: '15:00', destino: 'Corral' },
-  { salida: '18:00', destino: 'Corral' }
+  { salida: '06:00', destino: 'Corral', tipo: 'subsidiado' },
+  { salida: '09:00', destino: 'Corral', tipo: 'subsidiado' },
+  { salida: '11:30', destino: 'Corral', tipo: 'particular' },
+  { salida: '15:00', destino: 'Corral', tipo: 'subsidiado' },
+  { salida: '18:00', destino: 'Corral', tipo: 'subsidiado' }
 ];
 
 const MOCK_CLIMA = {
@@ -106,8 +120,8 @@ function proximoBus(salidas, offset, dir) {
   }
   if (!mejor) return `🔴 No hay más servicios hoy para esta ruta.`;
   const destino = mejor.destino || 'Corral';
-  const precio = PRECIOS[destino] || 0;
-  const tipo = TIPO_SERV[destino] || 'Servicio Público';
+  const precio = precioServ(destino);
+  const tipo = tipoServ(destino);
   const falta = mejorMin - ahora;
   const horaStr = pad(Math.floor(mejorMin / 60) % 24) + ':' + pad(mejorMin % 60);
   let alerta = '';
@@ -291,11 +305,20 @@ async function connectToWhatsApp() {
       } else if (['horarios','horario','bus','buses','micro','micros'].some(p => t.includes(p))) {
         delete sesiones[chatId];
         let resp = `🚌 *RUTA T-450 COSTERA* 📆 ${getDaySpanish()}\n\n`;
-        resp += `⬇️ *SALIDA DESDE CORRAL*\n`;
-        for (const h of HORARIOS_IDA) resp += `🕐 ${h.salida} → *${h.destino}* ($${PRECIOS[h.destino] || 0})\n`;
-        resp += `\n⬆️ *SALIDA DESDE HUIRO*\n`;
-        for (const h of HORARIOS_VUELTA) resp += `🕐 ${h.salida} → *Corral*\n`;
-        resp += `\n💡 *Escribe tu paradero* (Chaihuín, La Aguada, etc.) para el próximo horario.`;
+        resp += `🇨🇱 *SERVICIOS SUBSIDIADOS (MTT)*\n⬇️ *Corral → Costa*\n`;
+        for (const h of HORARIOS_IDA.filter(s => s.tipo === 'subsidiado'))
+          resp += `🕐 ${h.salida} → *${h.destino}* ($${precioServ(h.destino)})\n`;
+        resp += `\n⬆️ *Costa → Corral*\n`;
+        for (const h of HORARIOS_VUELTA.filter(s => s.tipo === 'subsidiado'))
+          resp += `🕐 ${h.salida} → *${h.destino}*\n`;
+        const privI = HORARIOS_IDA.filter(s => s.tipo === 'particular');
+        const privV = HORARIOS_VUELTA.filter(s => s.tipo === 'particular');
+        if (privI.length || privV.length) {
+          resp += `\n🚍 *SERVICIOS PARTICULARES (Sin subsidio)*\n`;
+          for (const h of privI) resp += `🕐 ${h.salida} → *${h.destino}* ($${precioServ(h.destino)})\n`;
+          for (const h of privV) resp += `🕐 ${h.salida} → *Corral*\n`;
+        }
+        resp += `\n💡 *Escribe tu sector o paradero* (ej: Chaihuín, La Aguada, Huiro)\n_para conocer el horario exacto del próximo bus en tiempo real._`;
         await sock.sendMessage(chatId, { text: resp });
 
       // ─── SECTOR / PARADA (solo próximo bus) ─────────
