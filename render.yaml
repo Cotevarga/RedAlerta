@@ -18,7 +18,7 @@ services:
           name: redalerta-db
           property: password
       - key: CORS_ORIGINS
-        value: https://redalerta-frontend.onrender.com
+        value: https://red-alerta.vercel.app,http://localhost:5173,http://localhost:5174
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_USERNAME
