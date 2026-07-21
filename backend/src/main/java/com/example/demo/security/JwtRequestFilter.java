@@ -21,8 +21,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private JwtUtil jwtUtil;
 
     private static final String[] PUBLIC_PATHS = {
-        "/api/transporte/", "/api/auth/", "/api/admin/incidentes",
-        "/api/whatsapp/", "/api/emergencia/", "/api/emergencias"
+        "/api/ping", "/api/transporte/", "/api/auth/", "/api/admin/incidentes",
+        "/api/whatsapp/", "/api/emergencia/", "/api/emergencias", "/api/emergencias/"
     };
 
     private boolean esPublico(String path) {
