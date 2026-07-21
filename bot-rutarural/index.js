@@ -49,7 +49,7 @@ async function reportStatus() {
 
 async function logConsulta(numero, sector, mensaje, tipo) {
     try {
-        await axios.post(`${BACKEND_URL}/api/admin/dashboard/consultas`, {
+        await axios.post(`${BACKEND_URL}/api/whatsapp/consultas`, {
             numeroWhatsapp: numero, sector, mensaje, tipo
         }, { timeout: 5000 });
     } catch (e) { /* silent */ }
