@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ShieldCheck, AlertCircle, Bus } from 'lucide-react';
@@ -11,6 +11,14 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    const keepAlive = setInterval(() => {
+      axios.get(`${API_URL}/api/transporte/reporte?sector=Corral&dia=Lunes`).catch(() => {});
+    }, 240000);
+    return () => clearInterval(keepAlive);
+  }, []);
 
   // Función que se ejecuta al presionar "Ingresar"
   const handleLogin = async (e) => {

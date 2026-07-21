@@ -25,6 +25,8 @@ services:
         value: adminMuni
       - key: ADMIN_PASSWORD
         value: Corral2026
+      - key: RENDER_URL
+        value: https://redalerta-backend.onrender.com
 
   - type: web
     name: redalerta-frontend

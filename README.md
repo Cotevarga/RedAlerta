@@ -224,6 +224,7 @@ docker compose up -d
 | `CORS_ORIGINS` | Orígenes CORS permitidos | `http://localhost:5173,http://localhost:5174,https://red-alerta.vercel.app` |
 | `VITE_API_URL` | URL del backend (frontend) | `http://localhost:8080` |
 | `BACKEND_URL` | URL del backend (bot) | `http://localhost:8080` |
+| `RENDER_URL` | URL pública del backend en Render | — (keep-alive automático) |
 
 ---
 
@@ -246,9 +247,17 @@ docker compose up -d
 | `redalerta-bot` | Worker | `./bot-rutarural/Dockerfile` | — |
 
 ### Notas importantes
-- El backend en Render **se duerme** tras 15 min en el plan gratuito. El bot tiene un **keep-alive** cada 10 minutos que lo mantiene activo.
+- El backend en Render **se duerme** tras 15 min en el plan gratuito. El proyecto incluye un **sistema de keep-alive triple** para mantenerlo activo:
+
+  | Mecanismo | Lugar | Intervalo |
+  |---|---|---|
+  | 🔄 `KeepAliveService.java` | Backend (Spring `@Scheduled`) — se autopinga su propia URL pública | Cada 8 min |
+  | 🌐 `setInterval` en Dashboard | Frontend (mientras haya alguien en el panel) | Cada 4 min |
+  | 💬 Bot WhatsApp | Bot-Rutarural (ping a backend) | Cada 10 min |
+
 - Si el frontend muestra *"El servidor central está despertando"*, espera ~30 segundos y reintenta.
 - Configura `VITE_API_URL` en Render como `https://redalerta-backend.onrender.com`.
+- Configura `RENDER_URL` en el backend con la misma URL para activar el keep-alive automático.
 
 ---
 

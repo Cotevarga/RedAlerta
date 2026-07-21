@@ -24,7 +24,7 @@ const Dashboard = () => {
     const token = localStorage.getItem('token');
     if (!token) { navigate('/login'); return; }
 
-    Promise.all([
+    const fetchData = () => Promise.all([
       axios.get(`${API()}/api/admin/dashboard/stats`, headers()).catch(() => null),
       axios.get(`${API()}/api/admin/dashboard/incidentes`, headers()).catch(() => null),
       axios.get(`${API()}/api/admin/dashboard/consultas`, headers()).catch(() => null),
@@ -33,6 +33,13 @@ const Dashboard = () => {
       if (i?.status === 200) setIncidentes(i.data);
       if (c?.status === 200) setConsultas(c.data);
     }).catch(() => {}).finally(() => setLoading(false));
+
+    fetchData();
+    const keepAlive = setInterval(() => {
+      axios.get(`${API()}/api/transporte/reporte?sector=Corral&dia=Lunes`).catch(() => {});
+    }, 240000);
+
+    return () => clearInterval(keepAlive);
   }, [navigate]);
 
   const handleLogout = () => {
