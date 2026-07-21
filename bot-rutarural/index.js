@@ -9,9 +9,6 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || '+56 9 XXXX XXXX';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
 const PORT = process.env.PORT || 3000;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2500;
-
 let connectionStatus = 'DISCONNECTED';
 let currentQrBase64 = '';
 
@@ -22,19 +19,20 @@ function getDayInSpanish() {
     return DIAS[chile.getDay()];
 }
 
-// ─── Retry logic: wake-up ping → wait → request ───────
-async function wakeAndFetch(url, timeout = 15000) {
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+// ─── Infinite retry: nunca se rinde, solo retorna éxito ─
+async function waitForBackend(url, timeout = 15000) {
+    while (true) {
         try {
             const resp = await axios.get(url, { timeout });
             return resp;
         } catch (error) {
-            if (!error.response && attempt < MAX_RETRIES - 1) {
-                console.log(`🔄 Wake-up intento ${attempt + 1} para: ${url.substring(0, 60)}...`);
-                await new Promise(r => setTimeout(r, RETRY_DELAY));
-                continue;
+            if (error.response && error.response.status !== 503 && error.response.status !== 502) {
+                // Error real del backend (404, 500, etc) — no intentar más
+                throw error;
             }
-            throw error;
+            // Network error o 502/503 (cold-start de Render) — reintentar
+            console.log(`🔄 Backend aún dormido, reintentando en 3s: ${url.substring(0, 60)}...`);
+            await new Promise(r => setTimeout(r, 3000));
         }
     }
 }
@@ -58,7 +56,7 @@ async function logConsulta(numero, sector, mensaje, tipo) {
 // ─── Keep-Alive (cada 4 min, agresivo) ─────────────────
 async function keepAlive() {
     try {
-        await wakeAndFetch(`${BACKEND_URL}/api/transporte/reporte?sector=Corral&dia=Lunes`, 8000);
+        await axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=Corral&dia=Lunes`, { timeout: 8000 });
     } catch (e) { /* silent */ }
 }
 setInterval(keepAlive, 4 * 60 * 1000);
@@ -137,30 +135,27 @@ async function connectToWhatsApp() {
         } else if (textoNormalizado.includes('chaihuin') || textoNormalizado.includes('corral') || textoNormalizado.includes('huiro')) {
             await sock.sendMessage(chatId, { text: '⏳ *Consultando el sistema...*' });
 
-            try {
-                let sector = 'Corral';
-                if (textoNormalizado.includes('chaihuin')) sector = 'Chaihuin';
-                if (textoNormalizado.includes('huiro')) sector = 'Huiro';
+            let sector = 'Corral';
+            if (textoNormalizado.includes('chaihuin')) sector = 'Chaihuin';
+            if (textoNormalizado.includes('huiro')) sector = 'Huiro';
 
-                const resp = await wakeAndFetch(
-                    `${BACKEND_URL}/api/transporte/reporte?sector=${sector}&dia=${getDayInSpanish()}`
-                );
-                await sock.sendMessage(chatId, { text: resp.data });
+            waitForBackend(
+                `${BACKEND_URL}/api/transporte/reporte?sector=${sector}&dia=${getDayInSpanish()}`
+            ).then(resp => {
+                sock.sendMessage(chatId, { text: resp.data });
                 logConsulta(chatId, sector, textMessage, 'consulta');
-            } catch (error) {
-                console.error("Error backend:", error.message);
-                await sock.sendMessage(chatId, { text: '⏳ El sistema está procesando tu consulta. Envía el nombre de tu sector nuevamente en unos segundos.' });
-            }
+            }).catch(e => {
+                console.error("Error backend (irrecuperable):", e.message);
+            });
         } else if (textoNormalizado.includes('estado') || textoNormalizado.includes('alerta') || textoNormalizado.includes('clima') || textoNormalizado.includes('puerto')) {
-            try {
-                const resp = await wakeAndFetch(`${BACKEND_URL}/api/emergencia`, 10000);
+            waitForBackend(`${BACKEND_URL}/api/emergencia`, 10000).then(resp => {
                 const d = resp.data;
-                await sock.sendMessage(chatId, {
+                sock.sendMessage(chatId, {
                     text: `📡 *ESTADO ACTUAL - CORRAL*\n\n⛵ *Puerto RVC:* ${d.puertoEstado}\n   ${d.puertoDetalle}\n\n🌤️ *Clima:* ${d.climaAlerta}\n   ${d.climaDetalle}\n\n🛣️ *Ruta T-450:* ${d.rutaAlerta}\n   ${d.rutaDetalle}\n\n_Responde EMERGENCIA para asistencia._`
                 });
-            } catch (e) {
-                await sock.sendMessage(chatId, { text: '⏳ Vuelve a consultar el estado en unos segundos.' });
-            }
+            }).catch(e => {
+                console.error("Error estado (irrecuperable):", e.message);
+            });
         } else if (textoNormalizado === 'emergencia') {
             await sock.sendMessage(chatId, {
                 text: '🚨 *NÚMEROS DE EMERGENCIA - CORRAL Y COSTA*\n\n' +
