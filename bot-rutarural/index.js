@@ -108,17 +108,28 @@ function proximoBus(salidas, offset, dir, label) {
   return `${label} ${pad(Math.floor(mejorMin / 60) % 24)}:${pad(mejorMin % 60)} hrs. (${tipo}, $${precio})${alerta}`;
 }
 
-// ─── HTTP ──────────────────────────────────────────────
-async function postSilent(url, data) {
-  try { await axios.post(url, data, { timeout: 5000 }); } catch (e) { console.log(`⚠️ POST fail: ${url}`); }
+// ─── HTTP con retry (hasta 3 intentos para persistir) ──
+async function postWithRetry(url, data, label = '') {
+  for (let i = 0; i < 3; i++) {
+    try {
+      await axios.post(url, data, { timeout: 8000 });
+      if (label) console.log(`✅ ${label} enviado`);
+      return;
+    } catch (e) {
+      console.log(`⚠️ ${label || url} falló (intento ${i+1}/3): ${e.message?.substring(0, 60)}`);
+      if (i < 2) await new Promise(r => setTimeout(r, 2000));
+    }
+  }
 }
 
 async function reportStatus() {
-  await postSilent(`${BACKEND_URL}/api/whatsapp/status`, { numero: WHATSAPP_NUMBER, status: connectionStatus, qr: currentQrBase64 });
+  await postWithRetry(`${BACKEND_URL}/api/whatsapp/status`,
+    { numero: WHATSAPP_NUMBER, status: connectionStatus, qr: currentQrBase64 }, 'Status');
 }
 
 async function logConsulta(chatId, sector, msg, tipo) {
-  await postSilent(`${BACKEND_URL}/api/whatsapp/consultas`, { numeroWhatsapp: chatId, sector, mensaje: msg, tipo });
+  await postWithRetry(`${BACKEND_URL}/api/whatsapp/consultas`,
+    { numeroWhatsapp: chatId, sector, mensaje: msg, tipo }, 'Consulta');
 }
 
 // Envía estado al backend (con reintento inicial por cold-start)
@@ -221,7 +232,7 @@ async function connectToWhatsApp() {
         try {
           await axios.post(`${BACKEND_URL}/api/admin/incidentes`, { rutaId: 1, tipoIncidente, descripcion: raw }, { timeout: 15000 });
           await sock.sendMessage(chatId, { text: `✅ *Reporte registrado* 📋\n🔹 ${tipoIncidente}: ${raw}\n\nEquipo municipal notificado. 🙌` });
-          logConsulta(chatId, 'Emergencia', `${tipoIncidente}: ${raw}`, 'emergencia');
+          await logConsulta(chatId, 'Emergencia', `${tipoIncidente}: ${raw}`, 'emergencia');
         } catch (e) { await sock.sendMessage(chatId, { text: '❌ No se pudo registrar. Usa *EMERGENCIA*.' }); }
 
       // ─── NÚMEROS ────────────────────────────────────
@@ -248,6 +259,7 @@ async function connectToWhatsApp() {
         await sock.sendMessage(chatId, {
           text: `📡 *REPORTE ${parada.sector.toUpperCase()}*\n\n🌤️ *Clima:* ${c.estado}, ${c.temp}\n💧 Humedad: ${c.humedad}\n💨 Viento: ${c.viento}\n\n⛵ *Puerto RVC:* ABIERTO\n   Operativo sin restricciones.\n\n🛣️ *Ruta T-450:* NORMAL\n   Transitable sin problemas.\n\n---\n🌐 _Datos mock — Al conectar API real se mostrarán datos en vivo._`
         });
+        await logConsulta(chatId, parada.sector, `Consulta clima: ${raw}`, 'clima');
 
       // ─── HORARIOS GENERALES ─────────────────────────
       } else if (['horarios','horario','bus','buses','micro','micros'].some(p => t.includes(p))) {
@@ -278,7 +290,7 @@ async function connectToWhatsApp() {
           resp += `\n⏱️ ${nom} está a ${off} min de Corral (${MAX_OFFSET - off} min de Huiro)`;
           resp += `\n💡 _Escribe HORARIOS para ver todas las salidas._`;
           await sock.sendMessage(chatId, { text: resp });
-          logConsulta(chatId, nom, raw, 'consulta');
+          await logConsulta(chatId, nom, raw, 'consulta');
         }
       }
     } catch (e) {
