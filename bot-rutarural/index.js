@@ -195,6 +195,8 @@ const app = express();
 app.get('/status', (req, res) => res.json({ numero: WHATSAPP_NUMBER, status: connectionStatus, qr: currentQrBase64 || null }));
 app.listen(PORT, '0.0.0.0', () => console.log(`📡 Bot HTTP en puerto ${PORT}`));
 
+let badMacCount = 0;
+
 // ─── Baileys ───────────────────────────────────────────
 async function connectToWhatsApp() {
   let authState;
@@ -270,24 +272,38 @@ async function connectToWhatsApp() {
 
       } else if (sesion?.paso === 'descripcion') {
         const { tipoIncidente } = sesion; delete sesiones[chatId];
-        // ✅ Responder éxito al usuario INMEDIATAMENTE (sin esperar al backend)
-        await sock.sendMessage(chatId, {
-          text: `✅ *¡Reporte de emergencia recibido!* 📋\n🔹 *${tipoIncidente}*\n🔹 ${raw}\n\nEl equipo municipal será notificado. ¡Gracias por ayudar a tu comunidad! 🙌`
-        });
-        // 📤 Enviar al backend en segundo plano (con retry)
-        (async () => {
-          for (let i = 0; i < 5; i++) {
-            try {
-              await axios.post(`${BACKEND_URL}/api/admin/incidentes`, { rutaId: 1, tipoIncidente, descripcion: raw }, { timeout: 15000 });
-              console.log(`✅ Emergencia registrada en backend: ${tipoIncidente}`);
-              logConsulta(chatId, 'Emergencia', `${tipoIncidente}: ${raw}`, 'emergencia');
-              return;
-            } catch (e) {
-              console.log(`⚠️ Emergencia (intento ${i+1}/5): ${e.message?.substring(0,60)}`);
-              if (i < 4) await new Promise(r => setTimeout(r, 3000));
-            }
+        await sock.sendMessage(chatId, { text: '⏳ *Registrando reporte...*' });
+
+        let exito = false;
+        for (let i = 0; i < 10; i++) {
+          try {
+            await axios.post(`${BACKEND_URL}/api/emergencias`, { rutaId: '1', tipoIncidente, descripcion: raw }, { timeout: 15000 });
+            exito = true;
+            console.log(`✅ Emergencia registrada: ${tipoIncidente}`);
+            logConsulta(chatId, 'Emergencia', `${tipoIncidente}: ${raw}`, 'emergencia');
+            break;
+          } catch (e) {
+            console.log(`⚠️ Emergencia (intento ${i+1}/10): ${e.message?.substring(0,60)}`);
+            if (i < 9) await new Promise(r => setTimeout(r, 3000));
           }
-        })();
+        }
+
+        if (exito) {
+          await sock.sendMessage(chatId, {
+            text: `✅ *Reporte de emergencia registrado con éxito* 📋\n🔹 *${tipoIncidente}*\n🔹 ${raw}\n\nLa municipalidad ha sido notificada. ¡Gracias! 🙌`
+          });
+        } else {
+          await sock.sendMessage(chatId, {
+            text: `⚠️ El servidor municipal está temporalmente fuera de línea. Tu reporte quedó pendiente y se reintentará automáticamente.\n\n🔹 *${tipoIncidente}*\n🔹 ${raw}`
+          });
+          // Background retry persistente (no molesta al usuario)
+          (async function retryPersistente() {
+            for (let i = 0; i < 30; i++) {
+              try { await axios.post(`${BACKEND_URL}/api/emergencias`, { rutaId: '1', tipoIncidente, descripcion: raw }, { timeout: 15000 }); console.log(`✅ Emergencia recuperada: ${tipoIncidente}`); logConsulta(chatId, 'Emergencia', `${tipoIncidente}: ${raw}`, 'emergencia'); return; }
+              catch (e) { await new Promise(r => setTimeout(r, 10000)); }
+            }
+          })();
+        }
 
       // ─── NÚMEROS ────────────────────────────────────
       } else if (['numero','numeros','telefono','telefonos','fono','contacto','ayuda'].some(p => t.includes(p))) {
@@ -365,8 +381,16 @@ async function connectToWhatsApp() {
         }
       }
     } catch (e) {
-      if (e.message?.includes('Bad MAC') || e.message?.includes('decrypt')) { console.log('⚠️ Bad MAC'); }
-      else { console.error('Error:', e.message); }
+      if (e.message?.includes('Bad MAC') || e.message?.includes('decrypt')) {
+        badMacCount++;
+        console.log(`⚠️ Bad MAC (${badMacCount}/5)`);
+        if (badMacCount >= 5) {
+          console.log('🧹 Demasiados errores Bad MAC. Limpiando sesión...');
+          badMacCount = 0;
+          try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch (er) {}
+          setTimeout(connectToWhatsApp, 5000);
+        }
+      } else { console.error('Error:', e.message); }
     }
   });
 }
