@@ -299,11 +299,34 @@ docker compose up -d
 
 ## 🤖 Bot de WhatsApp
 
-Configura el número oficial con la env var `WHATSAPP_NUMBER=+56 9 XXXX XXXX`.
+### Configuración
 
-Al iniciar, el bot muestra un código QR en la consola. Escanéalo con WhatsApp para vincular el número oficial.
+| Variable | Descripción |
+|---|---|
+| `WHATSAPP_NUMBER` | Número oficial (+56 9 XXXX XXXX) |
+| `BACKEND_URL` | URL del backend |
+| `PORT` | Puerto HTTP interno (3000) |
 
-El bot responde a los siguientes mensajes:
+### Autenticación y QR
+
+Al iniciar, el bot:
+1. Imprime el QR en los logs de Render (`printQRInTerminal: true`)
+2. Genera una versión base64 del QR y la envía al backend via `POST /api/whatsapp/status`
+3. El Dashboard puede consultar `GET /api/whatsapp/qr` para ver el estado
+
+**Persistencia de sesión:** Las credenciales se guardan en `auth_info_baileys/`. En Render:
+- ✅ **Restart** (no deploy) → las credenciales persisten, no hay que re-escanear
+- ⚠️ **Deploy** (nuevo build) → el filesystem se limpia, hay que re-escanear el QR
+
+### Endpoint de estado
+```bash
+GET /api/whatsapp/qr
+# → { "numero": "+56 9 XXXX XXXX", "status": "SCAN_QR", "qr": "data:image/png;base64,..." }
+```
+
+Estados posibles: `DISCONNECTED`, `SCAN_QR`, `CONNECTED`, `LOGGED_OUT`.
+
+### Mensajes del Bot
 
 | Mensaje | Respuesta |
 |---|---|
