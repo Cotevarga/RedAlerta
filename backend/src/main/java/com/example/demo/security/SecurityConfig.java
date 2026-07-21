@@ -62,7 +62,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/ping", "/api/transporte/**", "/api/auth/**", "/api/admin/incidentes", "/api/whatsapp/**", "/api/emergencia/**", "/api/emergencias", "/api/emergencias/**").permitAll()
+                .requestMatchers("/", "/api/ping", "/api/transporte/**", "/api/auth/**", "/api/admin/incidentes", "/api/whatsapp/**", "/api/emergencia/**", "/api/emergencias", "/api/emergencias/**").permitAll()
                 .requestMatchers("/api/admin/**").authenticated()
                 .anyRequest().authenticated()
             )

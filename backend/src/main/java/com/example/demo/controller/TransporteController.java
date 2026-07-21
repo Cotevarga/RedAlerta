@@ -12,7 +12,7 @@ import java.util.Map;
 @RestController
 public class TransporteController {
 
-    @GetMapping("/api/ping")
+    @GetMapping({"/", "/api/ping"})
     public ResponseEntity<Map<String, String>> ping() {
         return ResponseEntity.ok(Map.of("status", "ok", "servicio", "Red Alerta"));
     }
