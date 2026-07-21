@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Bus, AlertTriangle, MessageSquare, ShieldCheck, LogOut,
-  Activity, MapPin, Lock, X, CheckCircle
+  Activity, MapPin, Lock, X, CheckCircle, Smartphone
 } from 'lucide-react';
 
 const API = () => import.meta.env.VITE_API_URL || 'https://red-alerta-backend.onrender.com';
@@ -18,6 +18,8 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [incidentes, setIncidentes] = useState([]);
   const [consultas, setConsultas] = useState([]);
+
+  const [whatsApp, setWhatsApp] = useState({ status: 'DISCONNECTED', qr: null, numero: '—' });
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
@@ -45,7 +47,13 @@ const Dashboard = () => {
       axios.get(`${API()}/api/transporte/reporte?sector=Corral&dia=Lunes`).catch(() => {});
     }, 240000);
 
-    return () => clearInterval(keepAlive);
+    const waPoll = setInterval(() => {
+      axios.get(`${API()}/api/whatsapp/qr`).then(r => {
+        if (r.status === 200) setWhatsApp(r.data);
+      }).catch(() => {});
+    }, 5000);
+
+    return () => { clearInterval(keepAlive); clearInterval(waPoll); };
   }, [navigate]);
 
   const handleLogout = () => {
@@ -108,6 +116,7 @@ const Dashboard = () => {
               { key: 'buses', icon: Bus, label: 'Frecuencia de Buses' },
               { key: 'consultas', icon: MessageSquare, label: 'Consultas WhatsApp' },
               { key: 'emergencias', icon: AlertTriangle, label: 'Emergencias' },
+              { key: 'whatsapp', icon: Smartphone, label: 'WhatsApp' },
             ].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition ${activeTab === tab.key ? 'bg-blue-600 text-white' : 'hover:bg-slate-800'}`}>
@@ -263,6 +272,47 @@ const Dashboard = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'whatsapp' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h3 className="text-xl font-bold text-slate-800 mb-2">Estado de WhatsApp</h3>
+            <p className="text-sm text-slate-500 mb-6">Monitoreo de la conexión del bot municipal.</p>
+
+            <div className="flex items-center gap-3 mb-6">
+              <span className={`w-4 h-4 rounded-full ${whatsApp.status === 'CONNECTED' ? 'bg-emerald-500' : whatsApp.status === 'SCAN_QR' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`}></span>
+              <span className="text-lg font-semibold text-slate-700">
+                {whatsApp.status === 'CONNECTED' ? 'Conectado' : whatsApp.status === 'SCAN_QR' ? 'Esperando escaneo QR' : 'Desconectado'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Número Oficial</p>
+                  <p className="text-lg font-semibold text-slate-800">{whatsApp.numero || 'No configurado'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Última Actualización</p>
+                  <p className="text-sm text-slate-600">{whatsApp.lastUpdate ? new Date(whatsApp.lastUpdate).toLocaleTimeString('es-CL') : '—'}</p>
+                </div>
+              </div>
+
+              {whatsApp.status === 'SCAN_QR' && whatsApp.qr && (
+                <div className="flex flex-col items-center">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Código QR</p>
+                  <img src={whatsApp.qr} alt="QR WhatsApp" className="w-48 h-48 border border-slate-200 rounded-xl" />
+                  <p className="text-xs text-slate-400 mt-2">Escanea con WhatsApp → Vincular dispositivo</p>
+                </div>
+              )}
+            </div>
+
+            {whatsApp.status === 'DISCONNECTED' && (
+              <div className="mt-4 p-4 bg-amber-50 text-amber-700 rounded-xl text-sm">
+                ⚠️ El bot no está conectado. Revisa los logs del servicio en Render para escanear el QR.
+              </div>
+            )}
           </div>
         )}
       </main>
