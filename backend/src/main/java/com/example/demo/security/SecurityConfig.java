@@ -2,6 +2,7 @@ package com.example.demo.security;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,6 +26,13 @@ public class SecurityConfig {
 
     @Value("${app.cors.origins:http://localhost:5173,http://localhost:5174,https://red-alerta.vercel.app}")
     private String corsOrigins;
+
+    @Bean
+    public FilterRegistrationBean<SimpleCorsFilter> corsFilterRegistration() {
+        FilterRegistrationBean<SimpleCorsFilter> reg = new FilterRegistrationBean<>(new SimpleCorsFilter());
+        reg.setOrder(Integer.MIN_VALUE);
+        return reg;
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
