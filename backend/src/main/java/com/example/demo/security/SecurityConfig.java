@@ -20,7 +20,7 @@ public class SecurityConfig {
     @Autowired
     private JwtRequestFilter jwtRequestFilter;
 
-    @Value("${app.cors.origins:http://localhost:5173,http://localhost:5174}")
+    @Value("${app.cors.origins:http://localhost:5173,http://localhost:5174,https://red-alerta.vercel.app}")
     private String corsOrigins;
 
     @Bean
@@ -31,9 +31,9 @@ public class SecurityConfig {
             config.setAllowedOrigins(Arrays.asList(corsOrigins.split(",")));
             config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
             config.setAllowedHeaders(Arrays.asList("*"));
+            config.setAllowCredentials(true);
             return config;
         }))
-        // 2. NUESTRAS REGLAS ANTERIORES
         .csrf(csrf -> csrf.disable())
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/api/transporte/**", "/api/auth/login", "/api/admin/incidentes").permitAll()
