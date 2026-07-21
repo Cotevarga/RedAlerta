@@ -2,22 +2,20 @@ package com.example.demo.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.util.Base64;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
     private Key SECRET_KEY;
-    
-    @Value("${jwt.secret:}")
+
+    @Value("${jwt.secret:redAlertaRuralClaveFija2026ParaFirmarTokensJWT}")
     private String jwtSecret;
 
     @Value("${jwt.expiration:36000000}")
@@ -25,12 +23,7 @@ public class JwtUtil {
 
     @PostConstruct
     public void init() {
-        if (jwtSecret != null && !jwtSecret.isBlank()) {
-            byte[] keyBytes = Base64.getDecoder().decode(jwtSecret);
-            SECRET_KEY = Keys.hmacShaKeyFor(keyBytes);
-        } else {
-            SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-        }
+        SECRET_KEY = Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
     /**

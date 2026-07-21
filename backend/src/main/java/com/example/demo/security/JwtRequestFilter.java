@@ -20,11 +20,24 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Autowired
     private JwtUtil jwtUtil;
 
+    private static final String[] PUBLIC_PATHS = {
+        "/api/transporte/", "/api/auth/", "/api/admin/incidentes",
+        "/api/whatsapp/", "/api/emergencia/"
+    };
+
+    private boolean esPublico(String path) {
+        for (String p : PUBLIC_PATHS) {
+            if (path.startsWith(p)) return true;
+        }
+        return false;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
 
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+        String path = request.getRequestURI();
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod()) || esPublico(path)) {
             chain.doFilter(request, response);
             return;
         }
