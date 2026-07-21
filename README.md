@@ -131,8 +131,12 @@ Monitoreo centralizado de horarios de salida y estado operativo de las líneas d
 
 **Endpoint:** `GET /api/transporte/reporte?sector={sector}&dia={dia}`
 
-### 2. Sistema de Alertas Tempranas
-Mecanismo que informa al usuario sobre los horarios programados, permitiendo anticipar la llegada del bus al paradero y evitar esperas prolongadas.
+### 2. Sistema de Alertas Tempranas (8 minutos)
+Mecanismo que calcula la hora exacta de llegada del bus a cada parada (P01–P11) usando offsets acumulados. Dispara una alerta predictiva **8 minutos antes** de que el bus pase por el paradero consultado, permitiendo al vecino salir a tiempo y evitar esperas.
+
+**Cálculo:** `horaSalidaTerminal + offsetParada - 8min = horaAlerta`
+
+Ejemplo: Bus sale 07:30 del Terminal → llega a Chaihuín Pueblo (P08, offset 45min) a las 08:15 → alerta se dispara a las 08:07.
 
 ### 3. Respuesta y Gestión de Emergencias
 Módulo municipal para reportar y gestionar eventos críticos (derrumbes, caída de árboles, cortes de ruta, emergencias en postas rurales). Clasificación por estados: *Activo → Resuelto*.
@@ -141,7 +145,7 @@ Módulo municipal para reportar y gestionar eventos críticos (derrumbes, caída
 Interfaz de mensajería 24/7 para que los vecinos consulten horarios, estado de caminos y números de emergencia en lenguaje natural. Cada consulta queda registrada en la base de datos para su posterior análisis.
 
 ### 5. Dashboard Municipal
-Panel web con 4 vistas:
+Panel web con 4 vistas y opción de **cambiar contraseña** desde el sidebar:
 - **Resumen General** — métricas en tiempo real (buses, consultas, incidentes, sectores)
 - **Frecuencia de Buses** — monitoreo de salidas hacia la costa
 - **Consultas WhatsApp** — historial de preguntas de los vecinos
@@ -222,9 +226,10 @@ docker compose up -d
 | `ADMIN_USERNAME` | Usuario del panel | `adminMuni` |
 | `ADMIN_PASSWORD` | Contraseña del panel | `Corral2026` |
 | `CORS_ORIGINS` | Orígenes CORS permitidos | `http://localhost:5173,http://localhost:5174,https://red-alerta.vercel.app` |
-| `VITE_API_URL` | URL del backend (frontend) | `http://localhost:8080` |
+| `VITE_API_URL` | URL del backend (frontend) | `https://red-alerta-backend.onrender.com` |
 | `BACKEND_URL` | URL del backend (bot) | `http://localhost:8080` |
 | `RENDER_URL` | URL pública del backend en Render | — (keep-alive automático) |
+| `WHATSAPP_NUMBER` | Número oficial de WhatsApp del bot | `+56 9 XXXX XXXX` |
 
 ---
 
@@ -278,12 +283,25 @@ docker compose up -d
 | `GET` | `/api/admin/dashboard/stats` | Estadísticas del dashboard |
 | `GET` | `/api/admin/dashboard/incidentes` | Listar todos los incidentes |
 | `PUT` | `/api/admin/dashboard/incidentes/{id}/resolver` | Resolver un incidente |
+| `PUT` | `/api/admin/dashboard/password` | Cambiar contraseña del admin |
 | `GET` | `/api/admin/dashboard/consultas` | Historial de consultas WhatsApp |
 | `POST` | `/api/admin/dashboard/consultas` | Registrar una consulta (bot) |
+
+### Paradas y Cálculo de Rutas
+
+| Método | Endpoint | Descripción |
+|---|---|---|
+| `GET` | `/api/paradas` | Lista todas las paradas con offsets |
+| `GET` | `/api/paradas/calcular?paradaId=P01&horaSalida=07:30` | Calcula hora de llegada a una parada |
+| `GET` | `/api/paradas/alerta?paradaId=P08&horaSalida=07:30` | Verifica si faltan 8 min para la alerta |
 
 ---
 
 ## 🤖 Bot de WhatsApp
+
+Configura el número oficial con la env var `WHATSAPP_NUMBER=+56 9 XXXX XXXX`.
+
+Al iniciar, el bot muestra un código QR en la consola. Escanéalo con WhatsApp para vincular el número oficial.
 
 El bot responde a los siguientes mensajes:
 

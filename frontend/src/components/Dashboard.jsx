@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Bus, AlertTriangle, MessageSquare, ShieldCheck, LogOut,
-  Activity, MapPin, Clock
+  Activity, MapPin, Lock, X, CheckCircle
 } from 'lucide-react';
 
 const API = () => import.meta.env.VITE_API_URL || 'https://red-alerta-backend.onrender.com';
@@ -18,7 +18,13 @@ const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [incidentes, setIncidentes] = useState([]);
   const [consultas, setConsultas] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -32,7 +38,7 @@ const Dashboard = () => {
       if (s?.status === 200) setStats(s.data);
       if (i?.status === 200) setIncidentes(i.data);
       if (c?.status === 200) setConsultas(c.data);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch(() => {});
 
     fetchData();
     const keepAlive = setInterval(() => {
@@ -52,6 +58,35 @@ const Dashboard = () => {
       await axios.put(`${API()}/api/admin/dashboard/incidentes/${id}/resolver`, {}, headers());
       setIncidentes(prev => prev.map(i => i.id === id ? { ...i, estado: 'Resuelto' } : i));
     } catch (e) { console.error(e); }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordMsg('');
+    setPasswordError('');
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Las contraseñas nuevas no coinciden.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    try {
+      const username = localStorage.getItem('username') || 'adminMuni';
+      const res = await axios.put(`${API()}/api/admin/dashboard/password`, {
+        username, oldPassword, newPassword
+      }, headers());
+      setPasswordMsg(res.data.mensaje || 'Contraseña actualizada.');
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setShowPasswordModal(false), 1500);
+    } catch (err) {
+      setPasswordError(err.response?.data || 'Error al cambiar la contraseña.');
+    }
   };
 
   const statsData = stats || { busesActivos: 3, consultasHoy: 0, incidentesActivos: 0, sectoresConectados: 4, totalIncidentes: 0, totalHorarios: 12 };
@@ -82,7 +117,11 @@ const Dashboard = () => {
             ))}
           </nav>
         </div>
-        <div className="pt-6 border-t border-slate-800">
+        <div className="pt-6 border-t border-slate-800 space-y-2">
+          <button onClick={() => { setPasswordMsg(''); setPasswordError(''); setShowPasswordModal(true); }}
+            className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 transition">
+            <Lock className="w-5 h-5" /><span>Cambiar Contraseña</span>
+          </button>
           <button onClick={handleLogout}
             className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 transition">
             <LogOut className="w-5 h-5" /><span>Cerrar Sesión</span>
@@ -227,6 +266,54 @@ const Dashboard = () => {
           </div>
         )}
       </main>
+
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 relative">
+            <button onClick={() => setShowPasswordModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-xl font-bold text-slate-800 mb-6">Cambiar Contraseña</h3>
+
+            {passwordMsg && (
+              <div className="mb-4 p-3 bg-emerald-50 text-emerald-700 rounded-lg flex items-center gap-2 text-sm">
+                <CheckCircle className="w-5 h-5" /><span>{passwordMsg}</span>
+              </div>
+            )}
+            {passwordError && (
+              <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg flex items-center gap-2 text-sm">
+                <AlertTriangle className="w-5 h-5" /><span>{passwordError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual</label>
+                <input type="password" value={oldPassword} onChange={e => setOldPassword(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  required />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Contraseña</label>
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  required minLength={6} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Nueva Contraseña</label>
+                <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  required />
+              </div>
+              <button type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors">
+                Actualizar Contraseña
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

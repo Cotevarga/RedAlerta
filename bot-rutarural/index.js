@@ -28,19 +28,27 @@ async function logConsulta(numero, sector, mensaje, tipo) {
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
+    const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || 'No configurado';
+
     const sock = makeWASocket({
         auth: state,
-        printQRInTerminal: true, // Cambiado a true para que muestres el QR al iniciar en consola
+        printQRInTerminal: true,
         logger: pino({ level: "silent" })
     });
 
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+        if (qr) {
+            console.log('\n========================================');
+            console.log(`📱 NÚMERO OFICIAL: ${WHATSAPP_NUMBER}`);
+            console.log('🔐 ESCANEA EL CÓDIGO QR DE ARRIBA CON WHATSAPP');
+            console.log('========================================\n');
+        }
         if (connection === 'close') {
             const shouldReconnect = lastDisconnect.error?.output?.statusCode !== 401;
             if (shouldReconnect) connectToWhatsApp();
         } else if (connection === 'open') {
-            console.log('✅ ¡Bot de WhatsApp conectado y escuchando mensajes!');
+            console.log(`✅ Bot de WhatsApp conectado como ${WHATSAPP_NUMBER}`);
         }
     });
 

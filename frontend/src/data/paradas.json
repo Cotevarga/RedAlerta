@@ -1,0 +1,90 @@
+[
+  {
+    "id": "P01",
+    "nombre": "Terminal Rural Corral",
+    "tipoHito": "Terminal",
+    "sector": "Calle Rancagua",
+    "notas": "Punto de salida regulado.",
+    "offsetMinutos": 0
+  },
+  {
+    "id": "P02",
+    "nombre": "La Aguada",
+    "tipoHito": "Residencial / Colegio",
+    "sector": "Ruta T-450",
+    "notas": "Alta demanda en horarios escolares.",
+    "offsetMinutos": 5
+  },
+  {
+    "id": "P03",
+    "nombre": "Cruce Amargos",
+    "tipoHito": "Bifurcación",
+    "sector": "Ruta T-450",
+    "notas": "Entrada al sector Amargos.",
+    "offsetMinutos": 10
+  },
+  {
+    "id": "P04",
+    "nombre": "San Carlos",
+    "tipoHito": "Localidad",
+    "sector": "Ruta T-450",
+    "notas": "Zona residencial costera.",
+    "offsetMinutos": 15
+  },
+  {
+    "id": "P05",
+    "nombre": "Los Liles",
+    "tipoHito": "Localidad",
+    "sector": "Ruta T-450",
+    "notas": "Parada a petición del pasajero.",
+    "offsetMinutos": 22
+  },
+  {
+    "id": "P06",
+    "nombre": "Palo Muerto",
+    "tipoHito": "Localidad",
+    "sector": "Ruta T-450",
+    "notas": "Parada a petición del pasajero.",
+    "offsetMinutos": 28
+  },
+  {
+    "id": "P07",
+    "nombre": "Huape",
+    "tipoHito": "Turístico / Gastronómico",
+    "sector": "Ruta T-450",
+    "notas": "Alta demanda fines de semana.",
+    "offsetMinutos": 35
+  },
+  {
+    "id": "P08",
+    "nombre": "Chaihuín Pueblo",
+    "tipoHito": "Balneario / Comercio",
+    "sector": "Entrada a Chaihuín",
+    "notas": "Detención principal intermedia.",
+    "offsetMinutos": 45
+  },
+  {
+    "id": "P09",
+    "nombre": "Reserva Costera",
+    "tipoHito": "Control / Parque",
+    "sector": "Pasado Puente Chaihuín",
+    "notas": "Flujo constante de turistas.",
+    "offsetMinutos": 52
+  },
+  {
+    "id": "P10",
+    "nombre": "Kamañ Mapu",
+    "tipoHito": "Comunidad",
+    "sector": "Ruta Interior",
+    "notas": "Parada a petición / Turismo.",
+    "offsetMinutos": 60
+  },
+  {
+    "id": "P11",
+    "nombre": "Huiro",
+    "tipoHito": "Terminal Final",
+    "sector": "Sector Huiro Costero",
+    "notas": "Punto de retorno del bus.",
+    "offsetMinutos": 70
+  }
+]

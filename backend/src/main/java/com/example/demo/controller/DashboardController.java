@@ -3,8 +3,10 @@ package com.example.demo.controller;
 import com.example.demo.DTO.DashboardStatsDTO;
 import com.example.demo.model.IncidenteVial;
 import com.example.demo.model.RegistroConsulta;
+import com.example.demo.service.AdminConfigService;
 import com.example.demo.service.TransporteService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +19,9 @@ public class DashboardController {
 
     @Autowired
     private TransporteService transporteService;
+
+    @Autowired
+    private AdminConfigService adminConfigService;
 
     @GetMapping("/stats")
     public ResponseEntity<DashboardStatsDTO> obtenerEstadisticas() {
@@ -51,5 +56,23 @@ public class DashboardController {
             body.getOrDefault("tipo", "consulta")
         );
         return ResponseEntity.ok(consulta);
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<?> cambiarPassword(@RequestBody Map<String, String> body) {
+        String username = body.getOrDefault("username", "");
+        String oldPassword = body.getOrDefault("oldPassword", "");
+        String newPassword = body.getOrDefault("newPassword", "");
+
+        if (newPassword.length() < 6) {
+            return ResponseEntity.badRequest().body("La nueva contraseña debe tener al menos 6 caracteres.");
+        }
+
+        boolean cambiado = adminConfigService.cambiarPassword(username, oldPassword, newPassword);
+        if (cambiado) {
+            return ResponseEntity.ok(Map.of("mensaje", "Contraseña actualizada exitosamente."));
+        } else {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales actuales incorrectas.");
+        }
     }
 }
