@@ -15,7 +15,10 @@ let currentQrBase64 = '';
 let currentQrTerminal = '';
 
 function getDayInSpanish() {
-    return DIAS[new Date().getDay()];
+    const now = new Date();
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    const chile = new Date(utc - 10800000);
+    return DIAS[chile.getDay()];
 }
 
 async function reportStatus() {
@@ -128,13 +131,19 @@ async function connectToWhatsApp() {
                 if (textoNormalizado.includes('huiro')) sector = 'Huiro';
 
                 const diaHoy = getDayInSpanish();
-                const resp = await axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=${sector}&dia=${diaHoy}`, { timeout: 10000 });
+                const resp = await axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=${sector}&dia=${diaHoy}`, { timeout: 15000 });
 
                 await sock.sendMessage(chatId, { text: resp.data });
                 logConsulta(chatId, sector, textMessage, 'consulta');
             } catch (error) {
                 console.error("Error backend:", error.message);
-                await sock.sendMessage(chatId, { text: '❌ Ups, el servidor central está fuera de línea. Intenta en unos minutos.' });
+                if (!error.response) {
+                    await sock.sendMessage(chatId, { text: '⏳ El servidor central está despertando. Intenta nuevamente en 30 segundos.' });
+                } else if (error.response.status === 404) {
+                    await sock.sendMessage(chatId, { text: '❌ No se encontraron horarios para ese sector. Verifica el nombre e intenta de nuevo.' });
+                } else {
+                    await sock.sendMessage(chatId, { text: '❌ Error al consultar el sistema. Intenta más tarde.' });
+                }
             }
         } else if (textoNormalizado === 'emergencia') {
             await sock.sendMessage(chatId, {
@@ -152,9 +161,9 @@ async function connectToWhatsApp() {
 // ─── Keep-Alive ────────────────────────────────────────
 setInterval(async () => {
     try {
-        await axios.get(`${BACKEND_URL}/api/transporte`, { timeout: 10000 });
+        await axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=Corral&dia=Lunes`, { timeout: 10000 });
     } catch (e) { /* silent */ }
-}, 10 * 60 * 1000);
+}, 8 * 60 * 1000);
 
 // ─── Start ─────────────────────────────────────────────
 console.log('🚀 Iniciando Bot de Red Alerta...');

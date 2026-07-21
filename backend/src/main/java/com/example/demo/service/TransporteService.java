@@ -33,7 +33,18 @@ public class TransporteService {
     private RegistroConsultaRepository registroConsultaRepository;
 
     public String obtenerReporteMovilidad(String sectorNombre, String diaConsultado) {
-        List<Ruta> rutasEncontradas = rutaRepository.findByOrigenContainingIgnoreCaseOrDestinoContainingIgnoreCase(sectorNombre, sectorNombre);
+        String sectorNormalizado = sectorNombre
+            .replace("Chaihuin", "Chaihuín")
+            .replace("chaihuin", "Chaihuín")
+            .replace("CHAIHUIN", "Chaihuín");
+        String diaNormalizado = diaConsultado
+            .replace("Sabado", "Sábado")
+            .replace("sabado", "Sábado")
+            .replace("sábado", "Sábado")
+            .replace("Miercoles", "Miércoles")
+            .replace("miercoles", "Miércoles")
+            .replace("miércoles", "Miércoles");
+        List<Ruta> rutasEncontradas = rutaRepository.findByOrigenContainingIgnoreCaseOrDestinoContainingIgnoreCase(sectorNormalizado, sectorNormalizado);
 
         if (rutasEncontradas.isEmpty()) {
             return "🤖 No encontramos horarios registrados para el sector: '" + sectorNombre + "'. Verifique el nombre e intente nuevamente.";
@@ -58,7 +69,7 @@ public class TransporteService {
                 }
             }
 
-            List<HorarioFijo> horarios = horarioFijoRepository.findByRutaAndDiaSemanaOrderByHoraSalidaAsc(ruta, diaConsultado);
+            List<HorarioFijo> horarios = horarioFijoRepository.findByRutaAndDiaSemanaOrderByHoraSalidaAsc(ruta, diaNormalizado);
             
             if (horarios.isEmpty()) {
                 respuesta.append("⏱️ No hay salidas programadas para hoy.\n");
