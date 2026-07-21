@@ -29,7 +29,18 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(Arrays.asList(corsOrigins.split(",")));
+
+        // Combina lo que venga de propiedades con Vercel siempre presente
+        java.util.List<String> origins = new java.util.ArrayList<>();
+        for (String o : corsOrigins.split(",")) {
+            o = o.trim();
+            if (!o.isEmpty()) origins.add(o);
+        }
+        if (!origins.contains("https://red-alerta.vercel.app")) {
+            origins.add("https://red-alerta.vercel.app");
+        }
+        config.setAllowedOrigins(origins);
+
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setAllowCredentials(true);

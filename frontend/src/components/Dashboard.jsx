@@ -6,7 +6,7 @@ import {
   Activity, MapPin, Clock
 } from 'lucide-react';
 
-const API = () => import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API = () => import.meta.env.VITE_API_URL || 'https://red-alerta-backend.onrender.com';
 
 const headers = () => ({
   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }

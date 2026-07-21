@@ -13,7 +13,7 @@ const Login = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+    const API_URL = import.meta.env.VITE_API_URL || 'https://red-alerta-backend.onrender.com';
     const keepAlive = setInterval(() => {
       axios.get(`${API_URL}/api/transporte/reporte?sector=Corral&dia=Lunes`).catch(() => {});
     }, 240000);
@@ -28,7 +28,7 @@ const Login = () => {
 
     try {
       // Hacemos la petición POST a tu servidor de Spring Boot
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      const API_URL = import.meta.env.VITE_API_URL || 'https://red-alerta-backend.onrender.com';
       const response = await axios.post(`${API_URL}/api/auth/login`, {
         username: username,
         password: password
