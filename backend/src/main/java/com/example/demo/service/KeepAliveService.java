@@ -17,7 +17,7 @@ public class KeepAliveService {
     @Value("${app.render-url:}")
     private String renderUrl;
 
-    @Scheduled(fixedRate = 480000)
+    @Scheduled(fixedRate = 300000)
     public void mantenerDespierto() {
         if (renderUrl == null || renderUrl.isBlank()) return;
 
@@ -27,7 +27,6 @@ public class KeepAliveService {
                     .GET()
                     .build();
             client.send(request, HttpResponse.BodyHandlers.discarding());
-            System.out.println("🔄 Keep-alive: backend notificado exitosamente.");
         } catch (Exception e) {
             System.out.println("⚠️ Keep-alive: " + e.getMessage());
         }

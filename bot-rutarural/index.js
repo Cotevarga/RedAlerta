@@ -9,10 +9,11 @@ const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', '
 const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || '+56 9 XXXX XXXX';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
 const PORT = process.env.PORT || 3000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2500;
 
 let connectionStatus = 'DISCONNECTED';
 let currentQrBase64 = '';
-let currentQrTerminal = '';
 
 function getDayInSpanish() {
     const now = new Date();
@@ -21,12 +22,27 @@ function getDayInSpanish() {
     return DIAS[chile.getDay()];
 }
 
+// ─── Retry logic: wake-up ping → wait → request ───────
+async function wakeAndFetch(url, timeout = 15000) {
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+            const resp = await axios.get(url, { timeout });
+            return resp;
+        } catch (error) {
+            if (!error.response && attempt < MAX_RETRIES - 1) {
+                console.log(`🔄 Wake-up intento ${attempt + 1} para: ${url.substring(0, 60)}...`);
+                await new Promise(r => setTimeout(r, RETRY_DELAY));
+                continue;
+            }
+            throw error;
+        }
+    }
+}
+
 async function reportStatus() {
     try {
         await axios.post(`${BACKEND_URL}/api/whatsapp/status`, {
-            numero: WHATSAPP_NUMBER,
-            status: connectionStatus,
-            qr: currentQrBase64
+            numero: WHATSAPP_NUMBER, status: connectionStatus, qr: currentQrBase64
         }, { timeout: 5000 });
     } catch (e) { /* silent */ }
 }
@@ -39,17 +55,22 @@ async function logConsulta(numero, sector, mensaje, tipo) {
     } catch (e) { /* silent */ }
 }
 
-// ─── Express (health + QR endpoint) ───────────────────
+// ─── Keep-Alive (cada 4 min, agresivo) ─────────────────
+async function keepAlive() {
+    try {
+        await wakeAndFetch(`${BACKEND_URL}/api/transporte/reporte?sector=Corral&dia=Lunes`, 8000);
+    } catch (e) { /* silent */ }
+}
+setInterval(keepAlive, 4 * 60 * 1000);
+keepAlive();
+
+// ─── Express ───────────────────────────────────────────
 const app = express();
 app.get('/status', (req, res) => {
-    res.json({
-        numero: WHATSAPP_NUMBER,
-        status: connectionStatus,
-        qr: currentQrBase64 || null
-    });
+    res.json({ numero: WHATSAPP_NUMBER, status: connectionStatus, qr: currentQrBase64 || null });
 });
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`📡 Bot HTTP endpoint en puerto ${PORT}`);
+    console.log(`📡 Bot HTTP en puerto ${PORT}`);
 });
 
 // ─── WhatsApp ──────────────────────────────────────────
@@ -68,20 +89,13 @@ async function connectToWhatsApp() {
 
         if (qr) {
             connectionStatus = 'SCAN_QR';
-            currentQrTerminal = qr;
-
             try {
                 currentQrBase64 = await qrcode.toDataURL(qr);
-            } catch (e) {
-                currentQrBase64 = '';
-            }
-
+            } catch (e) { currentQrBase64 = ''; }
             console.log('\n═══════════════════════════════════════════');
             console.log(`📱 NÚMERO OFICIAL: ${WHATSAPP_NUMBER}`);
-            console.log(`🔗 ESTADO: ${connectionStatus}`);
             console.log('📸 ESCANEA EL QR DE ARRIBA CON WHATSAPP');
             console.log('═══════════════════════════════════════════\n');
-
             reportStatus();
         }
 
@@ -97,7 +111,6 @@ async function connectToWhatsApp() {
             connectionStatus = reason === DisconnectReason.loggedOut ? 'LOGGED_OUT' : 'DISCONNECTED';
             console.log(`⚠️ Bot desconectado (razón: ${reason || 'desconocida'}). Reintentando...`);
             reportStatus();
-
             if (reason !== DisconnectReason.loggedOut) {
                 setTimeout(connectToWhatsApp, 3000);
             }
@@ -108,7 +121,6 @@ async function connectToWhatsApp() {
 
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         if (type !== 'notify') return;
-
         const msg = messages[0];
         if (!msg.message || msg.key.fromMe) return;
 
@@ -120,46 +132,34 @@ async function connectToWhatsApp() {
 
         if (textoNormalizado === 'hola' || textoNormalizado === 'menu') {
             await sock.sendMessage(chatId, {
-                text: `👋 ¡Hola! Soy el Bot de *Red Alerta*.\n\n🌍 *Comandos disponibles:*\n\n📍 *Sector* (Chaihuin, Corral, Huiro) → Horarios y estado de ruta\n📡 *Estado* / *Alerta* → Condiciones del puerto, clima y ruta T-450\n🚨 *Emergencia* → Números de asistencia local\n\nEj: escribe *Chaihuin* para consultar los horarios de hoy ${getDayInSpanish().toLowerCase()}.`
+                text: `👋 ¡Hola! Soy el Bot de *Red Alerta*.\n\n🌍 *Comandos:*\n📍 *Sector* (Chaihuin, Corral, Huiro) → Horarios\n📡 *Estado* / *Alerta* → Puerto, clima, ruta\n🚨 *Emergencia* → Números de asistencia`
             });
         } else if (textoNormalizado.includes('chaihuin') || textoNormalizado.includes('corral') || textoNormalizado.includes('huiro')) {
-            await sock.sendMessage(chatId, { text: '⏳ *Consultando el sistema de la municipalidad...*' });
+            await sock.sendMessage(chatId, { text: '⏳ *Consultando el sistema...*' });
 
             try {
                 let sector = 'Corral';
                 if (textoNormalizado.includes('chaihuin')) sector = 'Chaihuin';
                 if (textoNormalizado.includes('huiro')) sector = 'Huiro';
 
-                const diaHoy = getDayInSpanish();
-                const resp = await axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=${sector}&dia=${diaHoy}`, { timeout: 15000 });
-
+                const resp = await wakeAndFetch(
+                    `${BACKEND_URL}/api/transporte/reporte?sector=${sector}&dia=${getDayInSpanish()}`
+                );
                 await sock.sendMessage(chatId, { text: resp.data });
                 logConsulta(chatId, sector, textMessage, 'consulta');
             } catch (error) {
                 console.error("Error backend:", error.message);
-                if (!error.response) {
-                    await sock.sendMessage(chatId, { text: '⏳ El servidor central está despertando. Intenta nuevamente en 30 segundos.' });
-                } else if (error.response.status === 404) {
-                    await sock.sendMessage(chatId, { text: '❌ No se encontraron horarios para ese sector. Verifica el nombre e intenta de nuevo.' });
-                } else {
-                    await sock.sendMessage(chatId, { text: '❌ Error al consultar el sistema. Intenta más tarde.' });
-                }
+                await sock.sendMessage(chatId, { text: '⏳ El sistema está procesando tu consulta. Envía el nombre de tu sector nuevamente en unos segundos.' });
             }
         } else if (textoNormalizado.includes('estado') || textoNormalizado.includes('alerta') || textoNormalizado.includes('clima') || textoNormalizado.includes('puerto')) {
             try {
-                const resp = await axios.get(`${BACKEND_URL}/api/emergencia`, { timeout: 10000 });
-                const data = resp.data;
-                let estado = `📡 *ESTADO ACTUAL - CORRAL*\n\n`;
-                estado += `⛵ *Puerto RVC:* ${data.puertoEstado}\n`;
-                estado += `   ${data.puertoDetalle}\n\n`;
-                estado += `🌤️ *Clima:* ${data.climaAlerta}\n`;
-                estado += `   ${data.climaDetalle}\n\n`;
-                estado += `🛣️ *Ruta T-450:* ${data.rutaAlerta}\n`;
-                estado += `   ${data.rutaDetalle}\n\n`;
-                estado += `_Responde 'EMERGENCIA' para números de asistencia._`;
-                await sock.sendMessage(chatId, { text: estado });
+                const resp = await wakeAndFetch(`${BACKEND_URL}/api/emergencia`, 10000);
+                const d = resp.data;
+                await sock.sendMessage(chatId, {
+                    text: `📡 *ESTADO ACTUAL - CORRAL*\n\n⛵ *Puerto RVC:* ${d.puertoEstado}\n   ${d.puertoDetalle}\n\n🌤️ *Clima:* ${d.climaAlerta}\n   ${d.climaDetalle}\n\n🛣️ *Ruta T-450:* ${d.rutaAlerta}\n   ${d.rutaDetalle}\n\n_Responde EMERGENCIA para asistencia._`
+                });
             } catch (e) {
-                await sock.sendMessage(chatId, { text: '❌ No se pudo consultar el estado actual. Intenta más tarde.' });
+                await sock.sendMessage(chatId, { text: '⏳ Vuelve a consultar el estado en unos segundos.' });
             }
         } else if (textoNormalizado === 'emergencia') {
             await sock.sendMessage(chatId, {
@@ -173,13 +173,6 @@ async function connectToWhatsApp() {
         }
     });
 }
-
-// ─── Keep-Alive ────────────────────────────────────────
-setInterval(async () => {
-    try {
-        await axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=Corral&dia=Lunes`, { timeout: 10000 });
-    } catch (e) { /* silent */ }
-}, 8 * 60 * 1000);
 
 // ─── Start ─────────────────────────────────────────────
 console.log('🚀 Iniciando Bot de Red Alerta...');
