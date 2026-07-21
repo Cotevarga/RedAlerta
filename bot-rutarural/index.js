@@ -6,7 +6,7 @@ const express = require('express');
 const fs = require('fs');
 
 const WHATSAPP_NUMBER = process.env.WHATSAPP_NUMBER || '+56995140700';
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
+const BACKEND_URL = process.env.BACKEND_URL || (console.log('⚠️⚠️⚠️  BACKEND_URL no configurada — usa https://redalerta-backend.onrender.com') || 'https://redalerta-backend.onrender.com');
 const PORT = process.env.PORT || 3000;
 const AUTH_DIR = 'auth_info_baileys';
 const MAX_OFFSET = 70;
@@ -174,20 +174,22 @@ function logConsulta(chatId, sector, msg, tipo) {
 
 // Envía estado al backend (con reintento inicial por cold-start)
 (async function startupStatus() {
-  for (let i = 0; i < 5; i++) {
+  console.log(`🔗 Conectando a backend: ${BACKEND_URL}`);
+  for (let i = 0; i < 10; i++) {
     try {
-      await axios.post(`${BACKEND_URL}/api/whatsapp/status`, { numero: WHATSAPP_NUMBER, status: connectionStatus, qr: currentQrBase64 }, { timeout: 8000 });
-      console.log(`✅ Estado inicial enviado a ${BACKEND_URL}`);
-      break;
+      await axios.post(`${BACKEND_URL}/api/whatsapp/status`, { numero: WHATSAPP_NUMBER, status: connectionStatus, qr: currentQrBase64 }, { timeout: 10000 });
+      console.log(`✅ Status enviado a ${BACKEND_URL}`);
+      return;
     } catch (e) {
-      console.log(`⏳ Esperando backend (intento ${i+1}/5)...`);
+      if (i === 0 || i === 4 || i === 9) console.log(`⏳ Backend no responde (intento ${i+1}/10): ${e.message?.substring(0,60)}`);
       await new Promise(r => setTimeout(r, 3000));
     }
   }
+  console.log(`❌ CRÍTICO: No se pudo contactar al backend en ${BACKEND_URL}. Revisa la variable BACKEND_URL.`);
 })();
 
 setInterval(() => { reportStatus(); }, 4 * 60 * 1000);
-setInterval(() => { axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=Corral&dia=Lunes`, { timeout: 8000 }).catch(() => {}); }, 4 * 60 * 1000);
+setInterval(() => { axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=Corral&dia=Lunes`, { timeout: 10000 }).catch(() => {}); }, 4 * 60 * 1000);
 
 const app = express();
 app.get('/status', (req, res) => res.json({ numero: WHATSAPP_NUMBER, status: connectionStatus, qr: currentQrBase64 || null }));
