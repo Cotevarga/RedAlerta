@@ -61,13 +61,19 @@ function norm(str) { return str.toLowerCase().normalize('NFD').replace(/[\u0300-
 
 function getDaySpanish() {
   const d = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-  return d[new Date(new Date().getTime() + new Date().getTimezoneOffset() * 60000 - 10800000).getDay()];
+  return d[chileDate().getDay()];
 }
 
 function pad(n) { return n.toString().padStart(2, '0'); }
 
+function chileDate() {
+  const now = new Date();
+  return new Date(now.getTime() + now.getTimezoneOffset() * 60000 - 10800000);
+}
+
 function nowMin() {
-  const h = new Date(); return h.getHours() * 60 + h.getMinutes();
+  const c = chileDate();
+  return c.getHours() * 60 + c.getMinutes();
 }
 
 function calcLlegadaMin(hora, offset, dir) {
@@ -105,8 +111,20 @@ function proximoBus(salidas, offset, dir) {
   const falta = mejorMin - ahora;
   const horaStr = pad(Math.floor(mejorMin / 60) % 24) + ':' + pad(mejorMin % 60);
   let alerta = '';
-  if (falta <= 8) alerta = `\n⚠️ *ALERTA:* Pasa en ${falta} min 🚌`;
-  return `⏱️ *Próximo en ${falta} min* (${horaStr} hrs.)\n💵 $${precio} (${tipo})${alerta}`;
+  let tiempoStr;
+  if (falta <= 0) {
+    tiempoStr = '🔴 Ya pasó';
+  } else if (falta <= 8) {
+    alerta = `\n⚠️ *ALERTA:* Pasa en ${falta} min 🚌`;
+    tiempoStr = `*${falta} min*`;
+  } else if (falta < 60) {
+    tiempoStr = `*${falta} min*`;
+  } else {
+    const hrs = Math.floor(falta / 60);
+    const mins = falta % 60;
+    tiempoStr = `*${hrs}h ${mins}min*`;
+  }
+  return `⏱️ Próximo en ${tiempoStr} (${horaStr} hrs.)\n💵 $${precio} (${tipo})${alerta}`;
 }
 
 // ─── HTTP con retry (hasta 3 intentos para persistir) ──
