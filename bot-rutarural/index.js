@@ -41,8 +41,9 @@ const HORARIOS_IDA = [
 ];
 
 const HORARIOS_VUELTA = [
-  { salida: '06:00' }, { salida: '09:00' }, { salida: '11:30' },
-  { salida: '15:00' }, { salida: '18:00' }
+  { salida: '06:00', destino: 'Corral' }, { salida: '09:00', destino: 'Corral' },
+  { salida: '11:30', destino: 'Corral' }, { salida: '15:00', destino: 'Corral' },
+  { salida: '18:00', destino: 'Corral' }
 ];
 
 const MOCK_CLIMA = {
@@ -88,7 +89,7 @@ function findParada(texto) {
 }
 
 // ─── Próximo bus (solo el más cercano) ─────────────────
-function proximoBus(salidas, offset, dir, label) {
+function proximoBus(salidas, offset, dir) {
   const ahora = nowMin();
   let mejor = null, mejorMin = Infinity;
   for (const s of salidas) {
@@ -97,15 +98,15 @@ function proximoBus(salidas, offset, dir, label) {
       mejor = s; mejorMin = llegada;
     }
   }
-  if (!mejor) return `🔴 No hay más servicios hoy.`;
+  if (!mejor) return `🔴 No hay más servicios hoy para esta ruta.`;
   const destino = mejor.destino || 'Corral';
   const precio = PRECIOS[destino] || 0;
   const tipo = TIPO_SERV[destino] || 'Servicio Público';
-  const llega = pad(Math.floor(mejorMin / 60) % 24) + ':' + pad(mejorMin % 60);
   const falta = mejorMin - ahora;
+  const horaStr = pad(Math.floor(mejorMin / 60) % 24) + ':' + pad(mejorMin % 60);
   let alerta = '';
-  if (falta <= 8) alerta = ` ⚠️ *ALERTA:* Pasa en ${falta} min 🚌`;
-  return `${label} ${pad(Math.floor(mejorMin / 60) % 24)}:${pad(mejorMin % 60)} hrs. (${tipo}, $${precio})${alerta}`;
+  if (falta <= 8) alerta = `\n⚠️ *ALERTA:* Pasa en ${falta} min 🚌`;
+  return `⏱️ *Próximo en ${falta} min* (${horaStr} hrs.)\n💵 $${precio} (${tipo})${alerta}`;
 }
 
 // ─── HTTP con retry (hasta 3 intentos para persistir) ──
@@ -264,12 +265,12 @@ async function connectToWhatsApp() {
       // ─── HORARIOS GENERALES ─────────────────────────
       } else if (['horarios','horario','bus','buses','micro','micros'].some(p => t.includes(p))) {
         delete sesiones[chatId];
-        let resp = `🚌 *HORARIOS RUTA T-450* 📆 ${getDaySpanish()}\n\n`;
-        resp += `⬇️ *CORRAL → HUIRO*\n`;
+        let resp = `🚌 *RUTA T-450 COSTERA* 📆 ${getDaySpanish()}\n\n`;
+        resp += `⬇️ *SALIDA DESDE CORRAL*\n`;
         for (const h of HORARIOS_IDA) resp += `🕐 ${h.salida} → *${h.destino}* ($${PRECIOS[h.destino] || 0})\n`;
-        resp += `\n⬆️ *HUIRO → CORRAL*\n`;
+        resp += `\n⬆️ *SALIDA DESDE HUIRO*\n`;
         for (const h of HORARIOS_VUELTA) resp += `🕐 ${h.salida} → *Corral*\n`;
-        resp += `\n💡 *Escribe el nombre de tu sector* para el horario más próximo.`;
+        resp += `\n💡 *Escribe tu paradero* (Chaihuín, La Aguada, etc.) para el próximo horario.`;
         await sock.sendMessage(chatId, { text: resp });
 
       // ─── SECTOR / PARADA (solo próximo bus) ─────────
@@ -279,15 +280,23 @@ async function connectToWhatsApp() {
           delete sesiones[chatId];
           const off = parada.offset;
           const nom = parada.sector;
-          const precio = PRECIOS[nom] || 0;
-          await sock.sendMessage(chatId, { text: `⏳ *Buscando próximo servicio a ${nom}...*` });
+          await sock.sendMessage(chatId, { text: `⏳ *Buscando próximo servicio en ${nom}...*` });
 
           let resp = `📍 *${nom}* 📆 ${getDaySpanish()}\n\n`;
-          resp += `⬇️ *CORRAL → ${nom}*\n`;
-          resp += `🚌 ${proximoBus(HORARIOS_IDA, off, 'ida', 'Sale')}\n`;
-          resp += `⬆️ *${nom} → CORRAL*\n`;
-          resp += `🚌 ${proximoBus(HORARIOS_VUELTA, off, 'vuelta', 'Sale')}\n`;
-          resp += `\n⏱️ ${nom} está a ${off} min de Corral (${MAX_OFFSET - off} min de Huiro)`;
+
+          if (nom === 'Corral') {
+            resp += `⬇️ *CORRAL → HUIRO*\n`;
+            resp += `${proximoBus(HORARIOS_IDA, 0, 'ida')}\n`;
+          } else if (nom === 'Huiro') {
+            resp += `⬆️ *HUIRO → CORRAL*\n`;
+            resp += `${proximoBus(HORARIOS_VUELTA, 0, 'vuelta')}\n`;
+          } else {
+            resp += `⬇️ *HACIA ${nom.toUpperCase()}* (Corral → ${nom})\n`;
+            resp += `${proximoBus(HORARIOS_IDA, off, 'ida')}\n\n`;
+            resp += `⬆️ *DESDE ${nom.toUpperCase()}* (${nom} → Corral)\n`;
+            resp += `${proximoBus(HORARIOS_VUELTA, off, 'vuelta')}\n`;
+          }
+
           resp += `\n💡 _Escribe HORARIOS para ver todas las salidas._`;
           await sock.sendMessage(chatId, { text: resp });
           await logConsulta(chatId, nom, raw, 'consulta');
