@@ -1,29 +1,32 @@
 package com.example.demo.service;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 @Service
 public class KeepAliveService {
 
-    private final RestTemplate restTemplate;
+    private final HttpClient client = HttpClient.newHttpClient();
 
     @Value("${app.render-url:}")
     private String renderUrl;
-
-    public KeepAliveService(RestTemplateBuilder builder) {
-        this.restTemplate = builder.build();
-    }
 
     @Scheduled(fixedRate = 480000)
     public void mantenerDespierto() {
         if (renderUrl == null || renderUrl.isBlank()) return;
 
         try {
-            restTemplate.getForEntity(renderUrl + "/api/transporte/reporte?sector=Corral&dia=Lunes", String.class);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(renderUrl + "/api/transporte/reporte?sector=Corral&dia=Lunes"))
+                    .GET()
+                    .build();
+            client.send(request, HttpResponse.BodyHandlers.discarding());
             System.out.println("🔄 Keep-alive: backend notificado exitosamente.");
         } catch (Exception e) {
             System.out.println("⚠️ Keep-alive: " + e.getMessage());
