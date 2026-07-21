@@ -7,7 +7,7 @@ async function connectToWhatsApp() {
 
     const sock = makeWASocket({
         auth: state,
-        printQRInTerminal: false,
+        printQRInTerminal: true, // Cambiado a true para que muestres el QR al iniciar en consola
         logger: pino({ level: "silent" })
     });
 
@@ -84,6 +84,19 @@ async function connectToWhatsApp() {
             });
         }
     });
+
+    // ==========================================
+    // KEEP-ALIVE (Mantiene despierto a Render)
+    // ==========================================
+    setInterval(async () => {
+        try {
+            const BACKEND_URL = process.env.BACKEND_URL || 'https://red-alerta-backend.onrender.com';
+            await axios.get(`${BACKEND_URL}/api/transporte`);
+            console.log('🔄 Keep-alive ping enviado a Render exitosamente.');
+        } catch (error) {
+            console.error('⚠️ Error en el keep-alive:', error.message);
+        }
+    }, 10 * 60 * 1000); // Cada 10 minutos
 }
 
 connectToWhatsApp();
