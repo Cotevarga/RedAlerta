@@ -270,12 +270,24 @@ async function connectToWhatsApp() {
 
       } else if (sesion?.paso === 'descripcion') {
         const { tipoIncidente } = sesion; delete sesiones[chatId];
-        await sock.sendMessage(chatId, { text: '⏳ *Registrando...*' });
-        try {
-          await axios.post(`${BACKEND_URL}/api/admin/incidentes`, { rutaId: 1, tipoIncidente, descripcion: raw }, { timeout: 15000 });
-          await sock.sendMessage(chatId, { text: `✅ *Reporte registrado* 📋\n🔹 ${tipoIncidente}: ${raw}\n\nEquipo municipal notificado. 🙌` });
-          await logConsulta(chatId, 'Emergencia', `${tipoIncidente}: ${raw}`, 'emergencia');
-        } catch (e) { await sock.sendMessage(chatId, { text: '❌ No se pudo registrar. Usa *EMERGENCIA*.' }); }
+        // ✅ Responder éxito al usuario INMEDIATAMENTE (sin esperar al backend)
+        await sock.sendMessage(chatId, {
+          text: `✅ *¡Reporte de emergencia recibido!* 📋\n🔹 *${tipoIncidente}*\n🔹 ${raw}\n\nEl equipo municipal será notificado. ¡Gracias por ayudar a tu comunidad! 🙌`
+        });
+        // 📤 Enviar al backend en segundo plano (con retry)
+        (async () => {
+          for (let i = 0; i < 5; i++) {
+            try {
+              await axios.post(`${BACKEND_URL}/api/admin/incidentes`, { rutaId: 1, tipoIncidente, descripcion: raw }, { timeout: 15000 });
+              console.log(`✅ Emergencia registrada en backend: ${tipoIncidente}`);
+              logConsulta(chatId, 'Emergencia', `${tipoIncidente}: ${raw}`, 'emergencia');
+              return;
+            } catch (e) {
+              console.log(`⚠️ Emergencia (intento ${i+1}/5): ${e.message?.substring(0,60)}`);
+              if (i < 4) await new Promise(r => setTimeout(r, 3000));
+            }
+          }
+        })();
 
       // ─── NÚMEROS ────────────────────────────────────
       } else if (['numero','numeros','telefono','telefonos','fono','contacto','ayuda'].some(p => t.includes(p))) {
