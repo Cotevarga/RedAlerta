@@ -281,9 +281,9 @@ const Dashboard = () => {
             <p className="text-sm text-slate-500 mb-6">Monitoreo de la conexión del bot municipal.</p>
 
             <div className="flex items-center gap-3 mb-6">
-              <span className={`w-4 h-4 rounded-full ${whatsApp.status === 'CONNECTED' ? 'bg-emerald-500' : whatsApp.status === 'SCAN_QR' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`}></span>
+              <span className={`w-4 h-4 rounded-full ${whatsApp.numero === 'No configurado' ? 'bg-slate-400' : whatsApp.status === 'CONNECTED' ? 'bg-emerald-500' : whatsApp.status === 'SCAN_QR' ? 'bg-amber-500 animate-pulse' : 'bg-red-500'}`}></span>
               <span className="text-lg font-semibold text-slate-700">
-                {whatsApp.status === 'CONNECTED' ? 'Conectado' : whatsApp.status === 'SCAN_QR' ? 'Esperando escaneo QR' : 'Desconectado'}
+                {whatsApp.numero === 'No configurado' ? 'Esperando reporte del bot...' : whatsApp.status === 'CONNECTED' ? 'Conectado' : whatsApp.status === 'SCAN_QR' ? 'Escanea el QR' : 'Desconectado'}
               </span>
             </div>
 
@@ -291,7 +291,7 @@ const Dashboard = () => {
               <div className="space-y-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Número Oficial</p>
-                  <p className="text-lg font-semibold text-slate-800">{whatsApp.numero || 'No configurado'}</p>
+                  <p className="text-lg font-semibold text-slate-800">{whatsApp.numero !== 'No configurado' ? whatsApp.numero : '—'}</p>
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Última Actualización</p>
@@ -308,9 +308,15 @@ const Dashboard = () => {
               )}
             </div>
 
-            {whatsApp.status === 'DISCONNECTED' && (
+            {whatsApp.numero === 'No configurado' && (
+              <div className="mt-4 p-4 bg-slate-100 text-slate-600 rounded-xl text-sm">
+                ⏳ El bot aún no reporta su estado. Se reintenta automáticamente cada 4 minutos.
+              </div>
+            )}
+
+            {whatsApp.status === 'DISCONNECTED' && whatsApp.numero !== 'No configurado' && (
               <div className="mt-4 p-4 bg-amber-50 text-amber-700 rounded-xl text-sm">
-                ⚠️ El bot no está conectado. Revisa los logs del servicio en Render para escanear el QR.
+                ⚠️ El bot está desconectado. Revisa los logs en Render para escanear el QR nuevamente.
               </div>
             )}
           </div>
