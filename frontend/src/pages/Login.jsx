@@ -34,7 +34,13 @@ const Login = () => {
 
     } catch (err) {
       console.error("Error en el login:", err);
-      setError('Credenciales inválidas. Verifica tu usuario y contraseña.');
+      if (!err.response) {
+        setError('El servidor central está despertando, por favor intenta ingresar nuevamente en 30 segundos.');
+      } else if (err.response.status === 401) {
+        setError('Credenciales inválidas. Verifica tu usuario y contraseña.');
+      } else {
+        setError('Error inesperado del servidor. Intenta nuevamente más tarde.');
+      }
     } finally {
       setIsLoading(false);
     }
