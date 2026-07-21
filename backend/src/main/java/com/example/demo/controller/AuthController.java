@@ -2,6 +2,7 @@ package com.example.demo.controller;
 
 import com.example.demo.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,16 +16,19 @@ public class AuthController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    // Endpoint POST para iniciar sesión: /api/auth/login
+    @Value("${admin.username:adminMuni}")
+    private String adminUsername;
+
+    @Value("${admin.password:Corral2026}")
+    private String adminPassword;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credenciales) {
         
         String usuario = credenciales.get("username");
         String password = credenciales.get("password");
 
-        // VALIDACIÓN HARDCODEADA (Solo para efectos de desarrollo/demostración)
-        // Como Técnico Analista Programador sabes que luego esto se conecta a una tabla de Usuarios en la BD
-        if ("adminMuni".equals(usuario) && "Corral2026".equals(password)) {
+        if (adminUsername.equals(usuario) && adminPassword.equals(password)) {
             
             // Si las credenciales son correctas, generamos el pase VIP
             String tokenGenerado = jwtUtil.generarToken(usuario);

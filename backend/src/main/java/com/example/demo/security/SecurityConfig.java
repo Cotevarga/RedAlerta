@@ -1,6 +1,7 @@
 package com.example.demo.security;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -19,15 +20,15 @@ public class SecurityConfig {
     @Autowired
     private JwtRequestFilter jwtRequestFilter;
 
+    @Value("${app.cors.origins:http://localhost:5173,http://localhost:5174}")
+    private String corsOrigins;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         
-        // 1. ABRIMOS LAS PUERTAS A REACT (CORS)
         http.cors(cors -> cors.configurationSource(request -> {
             CorsConfiguration config = new CorsConfiguration();
-            // Permitimos los puertos por defecto de Vite
-            config.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://localhost:5174"));
-            // Permitimos todos los métodos y cabeceras
+            config.setAllowedOrigins(Arrays.asList(corsOrigins.split(",")));
             config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
             config.setAllowedHeaders(Arrays.asList("*"));
             return config;

@@ -59,8 +59,9 @@ async function connectToWhatsApp() {
                 if (textoNormalizado.includes('chaihuin')) sector = 'Chaihuin';
                 if (textoNormalizado.includes('huiro')) sector = 'Huiro';
 
-                // Hacemos la petición GET a nuestro propio computador (localhost:8080)
-                const respuestaJava = await axios.get(`http://localhost:8080/api/transporte/reporte?sector=${sector}&dia=Sábado`);
+                // Consultamos al backend
+                const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
+                const respuestaJava = await axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=${sector}&dia=Sábado`);
 
                 // Enviamos el texto que armó nuestro TransporteService en Java directo al WhatsApp
                 await sock.sendMessage(chatId, { text: respuestaJava.data });

@@ -4,20 +4,34 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.util.Base64;
 import java.util.Date;
 
-@Component // Esta anotación le dice a Spring que puede inyectar esta clase donde la necesitemos
+@Component
 public class JwtUtil {
 
-    // Generamos una clave secreta robusta de 256 bits automáticamente
-    // (En un entorno de producción real, esto se lee desde el archivo application.properties)
-    private static final Key SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+    private Key SECRET_KEY;
     
-    // Definimos la duración del token (Ej: 10 horas de jornada laboral para el operario municipal)
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10;
+    @Value("${jwt.secret:}")
+    private String jwtSecret;
+
+    @Value("${jwt.expiration:36000000}")
+    private long EXPIRATION_TIME;
+
+    @PostConstruct
+    public void init() {
+        if (jwtSecret != null && !jwtSecret.isBlank()) {
+            byte[] keyBytes = Base64.getDecoder().decode(jwtSecret);
+            SECRET_KEY = Keys.hmacShaKeyFor(keyBytes);
+        } else {
+            SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
+        }
+    }
 
     /**
      * MÉTODO 1: FABRICAR EL TOKEN
