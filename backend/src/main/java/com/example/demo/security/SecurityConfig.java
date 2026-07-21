@@ -20,7 +20,7 @@ import java.util.Arrays;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Autowired
+    @Autowired(required = false)
     private JwtRequestFilter jwtRequestFilter;
 
     @Value("${app.cors.origins:http://localhost:5173,http://localhost:5174,https://red-alerta.vercel.app}")
@@ -29,8 +29,6 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-
-        // Combina lo que venga de propiedades con Vercel siempre presente
         java.util.List<String> origins = new java.util.ArrayList<>();
         for (String o : corsOrigins.split(",")) {
             o = o.trim();
@@ -40,12 +38,10 @@ public class SecurityConfig {
             origins.add("https://red-alerta.vercel.app");
         }
         config.setAllowedOrigins(origins);
-
         config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Arrays.asList("*"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
@@ -53,7 +49,6 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
@@ -65,7 +60,9 @@ public class SecurityConfig {
             )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-        http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+        if (jwtRequestFilter != null) {
+            http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
+        }
 
         return http.build();
     }
