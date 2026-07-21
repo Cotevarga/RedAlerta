@@ -1,12 +1,7 @@
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
-
-// Un componente temporal para el Dashboard mientras lo construimos
-const DashboardTemporal = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50">
-    <h1 className="text-3xl font-bold text-gray-700">🚧 Dashboard de la Municipalidad en Construcción 🚧</h1>
-  </div>
-);
+import Dashboard from './components/Dashboard';
 
 function App() {
   return (
@@ -15,9 +10,9 @@ function App() {
         {/* Si alguien entra a la raíz de la página, lo mandamos directo al Login */}
         <Route path="/" element={<Navigate to="/login" replace />} />
         
-        {/* Nuestras dos rutas principales */}
+        {/* Rutas principales del sistema */}
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<DashboardTemporal />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </Router>
   );
