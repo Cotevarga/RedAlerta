@@ -2,6 +2,29 @@ const { makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys
 const pino = require('pino');
 const axios = require('axios'); // ¡Nuestra librería para hacer peticiones HTTP a Java!
 
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+function getDayInSpanish() {
+    return DIAS[new Date().getDay()];
+}
+
+function getBackendUrl() {
+    return process.env.BACKEND_URL || 'http://localhost:8080';
+}
+
+async function logConsulta(numero, sector, mensaje, tipo) {
+    try {
+        await axios.post(`${getBackendUrl()}/api/admin/dashboard/consultas`, {
+            numeroWhatsapp: numero,
+            sector: sector,
+            mensaje: mensaje,
+            tipo: tipo
+        });
+    } catch (e) {
+        // Silent fail — no bloquear la respuesta al usuario
+    }
+}
+
 async function connectToWhatsApp() {
     const { state, saveCreds } = await useMultiFileAuthState('auth_info_baileys');
 
@@ -45,7 +68,7 @@ async function connectToWhatsApp() {
         // 1. Mensaje de Bienvenida
         if (textoNormalizado === 'hola' || textoNormalizado === 'menu') {
             await sock.sendMessage(chatId, { 
-                text: '👋 ¡Hola! Soy el Bot de *Red Alerta*.\n\nEscribe el nombre de tu sector (ej: *Chaihuin*, *Corral*, *Huiro*) para consultar los horarios y el estado de la ruta para hoy sábado.' 
+                text: `👋 ¡Hola! Soy el Bot de *Red Alerta*.\n\nEscribe el nombre de tu sector (ej: *Chaihuin*, *Corral*, *Huiro*) para consultar los horarios y el estado de la ruta para hoy ${getDayInSpanish().toLowerCase()}.` 
             });
         }
         
@@ -54,17 +77,16 @@ async function connectToWhatsApp() {
             await sock.sendMessage(chatId, { text: '⏳ *Consultando el sistema de la municipalidad...*' });
 
             try {
-                // Limpiamos el nombre del sector para enviarlo a Java
-                let sector = 'Corral'; // Por defecto
+                let sector = 'Corral';
                 if (textoNormalizado.includes('chaihuin')) sector = 'Chaihuin';
                 if (textoNormalizado.includes('huiro')) sector = 'Huiro';
 
-                // Consultamos al backend
-                const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8080';
-                const respuestaJava = await axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=${sector}&dia=Sábado`);
+                const diaHoy = getDayInSpanish();
+                const BACKEND_URL = getBackendUrl();
+                const respuestaJava = await axios.get(`${BACKEND_URL}/api/transporte/reporte?sector=${sector}&dia=${diaHoy}`);
 
-                // Enviamos el texto que armó nuestro TransporteService en Java directo al WhatsApp
                 await sock.sendMessage(chatId, { text: respuestaJava.data });
+                logConsulta(chatId, sector, textMessage, 'consulta');
                 
             } catch (error) {
                 console.error("Error al contactar con Java:", error.message);
@@ -90,8 +112,7 @@ async function connectToWhatsApp() {
     // ==========================================
     setInterval(async () => {
         try {
-            const BACKEND_URL = process.env.BACKEND_URL || 'https://red-alerta-backend.onrender.com';
-            await axios.get(`${BACKEND_URL}/api/transporte`);
+            await axios.get(`${getBackendUrl()}/api/transporte`);
             console.log('🔄 Keep-alive ping enviado a Render exitosamente.');
         } catch (error) {
             console.error('⚠️ Error en el keep-alive:', error.message);

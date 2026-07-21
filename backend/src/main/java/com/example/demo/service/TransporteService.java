@@ -1,15 +1,19 @@
 package com.example.demo.service;
 
+import com.example.demo.DTO.DashboardStatsDTO;
 import com.example.demo.DTO.IncidenteRequestDTO;
 import com.example.demo.model.HorarioFijo;
 import com.example.demo.model.IncidenteVial;
+import com.example.demo.model.RegistroConsulta;
 import com.example.demo.model.Ruta;
 import com.example.demo.repository.HorarioFijoRepository;
 import com.example.demo.repository.IncidenteVialRepository;
+import com.example.demo.repository.RegistroConsultaRepository;
 import com.example.demo.repository.RutaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -24,6 +28,9 @@ public class TransporteService {
 
     @Autowired
     private IncidenteVialRepository incidenteVialRepository;
+
+    @Autowired
+    private RegistroConsultaRepository registroConsultaRepository;
 
     public String obtenerReporteMovilidad(String sectorNombre, String diaConsultado) {
         List<Ruta> rutasEncontradas = rutaRepository.findByOrigenContainingIgnoreCaseOrDestinoContainingIgnoreCase(sectorNombre, sectorNombre);
@@ -110,5 +117,32 @@ public class TransporteService {
         
         // Guardamos los cambios en Neon
         return incidenteVialRepository.save(incidente);
+    }
+
+    public DashboardStatsDTO obtenerEstadisticasDashboard() {
+        long busesActivos = rutaRepository.count();
+        long consultasHoy = registroConsultaRepository.countByTipo("consulta");
+        long incidentesActivos = incidenteVialRepository.findByEstado("Activo").size();
+        long sectoresConectados = rutaRepository.findByOrigenContainingIgnoreCaseOrDestinoContainingIgnoreCase("", "").size();
+        long totalIncidentes = incidenteVialRepository.count();
+        long totalHorarios = horarioFijoRepository.count();
+
+        if (sectoresConectados == 0) sectoresConectados = 4;
+
+        return new DashboardStatsDTO(busesActivos, consultasHoy, incidentesActivos, sectoresConectados, totalIncidentes, totalHorarios);
+    }
+
+    public List<RegistroConsulta> obtenerConsultasRecientes() {
+        return registroConsultaRepository.findTop50ByOrderByFechaConsultaDesc();
+    }
+
+    public RegistroConsulta registrarConsulta(String numeroWhatsapp, String sector, String mensaje, String tipo) {
+        RegistroConsulta consulta = new RegistroConsulta();
+        consulta.setNumeroWhatsapp(numeroWhatsapp);
+        consulta.setSector(sector);
+        consulta.setMensaje(mensaje);
+        consulta.setTipo(tipo);
+        consulta.setFechaConsulta(LocalDateTime.now());
+        return registroConsultaRepository.save(consulta);
     }
 }

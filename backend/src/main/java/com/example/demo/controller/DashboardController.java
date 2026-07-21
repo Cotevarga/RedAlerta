@@ -1,41 +1,55 @@
 package com.example.demo.controller;
 
+import com.example.demo.DTO.DashboardStatsDTO;
 import com.example.demo.model.IncidenteVial;
+import com.example.demo.model.RegistroConsulta;
 import com.example.demo.service.TransporteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/admin/dashboard") // ¡Ruta protegida por Token JWT!
+@RequestMapping("/api/admin/dashboard")
 public class DashboardController {
 
     @Autowired
     private TransporteService transporteService;
 
-    /**
-     * Endpoint GET para listar todos los incidentes.
-     * Solo accesible para funcionarios municipales con token.
-     */
-    @GetMapping("/incidentes")
-    public ResponseEntity<List<IncidenteVial>> listarIncidentes() {
-        List<IncidenteVial> lista = transporteService.obtenerTodosLosIncidentes();
-        return ResponseEntity.ok(lista);
+    @GetMapping("/stats")
+    public ResponseEntity<DashboardStatsDTO> obtenerEstadisticas() {
+        return ResponseEntity.ok(transporteService.obtenerEstadisticasDashboard());
     }
 
-    /**
-     * Endpoint PUT para actualizar un incidente a "Resuelto".
-     * Se usa el ID del incidente en la URL (ej: /api/admin/dashboard/incidentes/1/resolver)
-     */
+    @GetMapping("/incidentes")
+    public ResponseEntity<List<IncidenteVial>> listarIncidentes() {
+        return ResponseEntity.ok(transporteService.obtenerTodosLosIncidentes());
+    }
+
     @PutMapping("/incidentes/{id}/resolver")
     public ResponseEntity<IncidenteVial> resolverIncidente(@PathVariable Long id) {
         try {
-            IncidenteVial incidenteResuelto = transporteService.resolverIncidente(id);
-            return ResponseEntity.ok(incidenteResuelto);
+            return ResponseEntity.ok(transporteService.resolverIncidente(id));
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(null);
         }
+    }
+
+    @GetMapping("/consultas")
+    public ResponseEntity<List<RegistroConsulta>> listarConsultas() {
+        return ResponseEntity.ok(transporteService.obtenerConsultasRecientes());
+    }
+
+    @PostMapping("/consultas")
+    public ResponseEntity<RegistroConsulta> registrarConsulta(@RequestBody Map<String, String> body) {
+        RegistroConsulta consulta = transporteService.registrarConsulta(
+            body.getOrDefault("numeroWhatsapp", "desconocido"),
+            body.getOrDefault("sector", ""),
+            body.getOrDefault("mensaje", ""),
+            body.getOrDefault("tipo", "consulta")
+        );
+        return ResponseEntity.ok(consulta);
     }
 }
