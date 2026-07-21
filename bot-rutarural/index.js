@@ -128,9 +128,16 @@ async function reportStatus() {
     { numero: WHATSAPP_NUMBER, status: connectionStatus, qr: currentQrBase64 }, 'Status');
 }
 
-async function logConsulta(chatId, sector, msg, tipo) {
-  await postWithRetry(`${BACKEND_URL}/api/whatsapp/consultas`,
-    { numeroWhatsapp: chatId, sector, mensaje: msg, tipo }, 'Consulta');
+function logConsulta(chatId, sector, msg, tipo) {
+  const url = `${BACKEND_URL}/api/whatsapp/consultas`;
+  const data = { numeroWhatsapp: chatId, sector, mensaje: msg, tipo };
+  // Fire-and-forget con retry interno (no bloquea la respuesta al usuario)
+  (async () => {
+    for (let i = 0; i < 5; i++) {
+      try { await axios.post(url, data, { timeout: 10000 }); console.log(`✅ Consulta guardada: ${tipo} - ${sector}`); return; }
+      catch (e) { console.log(`⚠️ Consulta (intento ${i+1}/5): ${e.message?.substring(0,60)}`); if (i < 4) await new Promise(r => setTimeout(r, 3000)); }
+    }
+  })();
 }
 
 // Envía estado al backend (con reintento inicial por cold-start)
