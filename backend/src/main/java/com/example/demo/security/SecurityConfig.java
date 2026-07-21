@@ -59,7 +59,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/transporte/**", "/api/auth/**", "/api/admin/incidentes", "/api/whatsapp/**").permitAll()
+                .requestMatchers("/api/transporte/**", "/api/auth/**", "/api/admin/incidentes", "/api/whatsapp/**", "/api/emergencia/**").permitAll()
                 .requestMatchers("/api/admin/**").authenticated()
                 .anyRequest().authenticated()
             )

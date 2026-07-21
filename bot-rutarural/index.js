@@ -120,7 +120,7 @@ async function connectToWhatsApp() {
 
         if (textoNormalizado === 'hola' || textoNormalizado === 'menu') {
             await sock.sendMessage(chatId, {
-                text: `👋 ¡Hola! Soy el Bot de *Red Alerta*.\n\nEscribe el nombre de tu sector (ej: *Chaihuin*, *Corral*, *Huiro*) para consultar los horarios y el estado de la ruta para hoy ${getDayInSpanish().toLowerCase()}.`
+                text: `👋 ¡Hola! Soy el Bot de *Red Alerta*.\n\n🌍 *Comandos disponibles:*\n\n📍 *Sector* (Chaihuin, Corral, Huiro) → Horarios y estado de ruta\n📡 *Estado* / *Alerta* → Condiciones del puerto, clima y ruta T-450\n🚨 *Emergencia* → Números de asistencia local\n\nEj: escribe *Chaihuin* para consultar los horarios de hoy ${getDayInSpanish().toLowerCase()}.`
             });
         } else if (textoNormalizado.includes('chaihuin') || textoNormalizado.includes('corral') || textoNormalizado.includes('huiro')) {
             await sock.sendMessage(chatId, { text: '⏳ *Consultando el sistema de la municipalidad...*' });
@@ -144,6 +144,22 @@ async function connectToWhatsApp() {
                 } else {
                     await sock.sendMessage(chatId, { text: '❌ Error al consultar el sistema. Intenta más tarde.' });
                 }
+            }
+        } else if (textoNormalizado.includes('estado') || textoNormalizado.includes('alerta') || textoNormalizado.includes('clima') || textoNormalizado.includes('puerto')) {
+            try {
+                const resp = await axios.get(`${BACKEND_URL}/api/emergencia`, { timeout: 10000 });
+                const data = resp.data;
+                let estado = `📡 *ESTADO ACTUAL - CORRAL*\n\n`;
+                estado += `⛵ *Puerto RVC:* ${data.puertoEstado}\n`;
+                estado += `   ${data.puertoDetalle}\n\n`;
+                estado += `🌤️ *Clima:* ${data.climaAlerta}\n`;
+                estado += `   ${data.climaDetalle}\n\n`;
+                estado += `🛣️ *Ruta T-450:* ${data.rutaAlerta}\n`;
+                estado += `   ${data.rutaDetalle}\n\n`;
+                estado += `_Responde 'EMERGENCIA' para números de asistencia._`;
+                await sock.sendMessage(chatId, { text: estado });
+            } catch (e) {
+                await sock.sendMessage(chatId, { text: '❌ No se pudo consultar el estado actual. Intenta más tarde.' });
             }
         } else if (textoNormalizado === 'emergencia') {
             await sock.sendMessage(chatId, {

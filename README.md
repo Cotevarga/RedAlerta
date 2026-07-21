@@ -144,7 +144,22 @@ Módulo municipal para reportar y gestionar eventos críticos (derrumbes, caída
 ### 4. Bot de Consultas Automatizadas (WhatsApp)
 Interfaz de mensajería 24/7 para que los vecinos consulten horarios, estado de caminos y números de emergencia en lenguaje natural. Cada consulta queda registrada en la base de datos para su posterior análisis.
 
-### 5. Dashboard Municipal
+### 5. Sistema de Emergencia y Estado del Puerto
+
+Monitoreo del estado del Puerto de Corral (RVC), alertas climáticas y condiciones de la ruta T-450.
+
+**Patrón Mock/Standby:** El servicio `EmergencyStatusService.java` funciona con valores simulados por defecto. Está preparado para conectar APIs reales (Directemar RVC, MeteoChile) en una Fase 2 — los métodos tienen comentarios con la estructura exacta de integración.
+
+Los valores se pueden actualizar en tiempo real desde el Dashboard o vía API:
+```bash
+curl -X PUT https://redalerta-backend.onrender.com/api/emergencia/puerto \
+  -H "Content-Type: application/json" \
+  -d '{"estado":"CERRADO","detalle":"Marejadas de hasta 4 metros en la costa de Corral."}'
+```
+
+El bot incluye automáticamente alertas activas en las respuestas de horarios y al consultar con los comandos `estado` / `alerta`.
+
+### 6. Dashboard Municipal
 Panel web con 4 vistas y opción de **cambiar contraseña** desde el sidebar:
 - **Resumen General** — métricas en tiempo real (buses, consultas, incidentes, sectores)
 - **Frecuencia de Buses** — monitoreo de salidas hacia la costa
@@ -275,6 +290,11 @@ docker compose up -d
 | `POST` | `/api/auth/login` | Iniciar sesión (devuelve JWT) |
 | `GET` | `/api/transporte/reporte?sector={sector}&dia={dia}` | Reporte de movilidad |
 | `POST` | `/api/admin/incidentes` | Reportar incidente (rate-limited) |
+| `GET` | `/api/emergencia` | Estado actual del puerto, clima y ruta |
+| `PUT` | `/api/emergencia/puerto` | Actualizar estado del puerto (admin) |
+| `PUT` | `/api/emergencia/clima` | Actualizar alerta climática (admin) |
+| `PUT` | `/api/emergencia/ruta` | Actualizar estado de la ruta T-450 (admin) |
+| `POST` | `/api/emergencia/reset` | Resetear a valores mock por defecto |
 
 ### Protegidos (requieren `Authorization: Bearer {token}`)
 
@@ -330,8 +350,9 @@ Estados posibles: `DISCONNECTED`, `SCAN_QR`, `CONNECTED`, `LOGGED_OUT`.
 
 | Mensaje | Respuesta |
 |---|---|
-| `hola` / `menu` | Mensaje de bienvenida con instrucciones |
+| `hola` / `menu` | Mensaje de bienvenida con todos los comandos |
 | `chaihuin` / `corral` / `huiro` | Horarios y estado de ruta para el sector consultado |
+| `estado` / `alerta` / `clima` / `puerto` | Estado actual del puerto RVC, clima y ruta T-450 |
 | `emergencia` | Números de emergencia de Corral y costa |
 
 Todas las consultas se registran automáticamente en la base de datos (`registros_consultas`) con el número de WhatsApp, sector consultado, mensaje, y fecha/hora.

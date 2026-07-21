@@ -32,6 +32,9 @@ public class TransporteService {
     @Autowired
     private RegistroConsultaRepository registroConsultaRepository;
 
+    @Autowired
+    private EmergencyStatusService emergencyStatusService;
+
     public String obtenerReporteMovilidad(String sectorNombre, String diaConsultado) {
         String sectorNormalizado = sectorNombre
             .replace("Chaihuin", "Chaihuín")
@@ -54,6 +57,13 @@ public class TransporteService {
         respuesta.append("🚌 *RED ALERTA - REPORTE DE MOVILIDAD*\n");
         respuesta.append("📍 Sector: ").append(sectorNombre).append("\n");
         respuesta.append("📆 Día: ").append(diaConsultado).append("\n");
+
+        String alertas = emergencyStatusService.getAlertasResumen();
+        if (!alertas.isEmpty()) {
+            respuesta.append("------------------------------------------\n");
+            respuesta.append(alertas);
+        }
+
         respuesta.append("------------------------------------------\n\n");
 
         for (Ruta ruta : rutasEncontradas) {
