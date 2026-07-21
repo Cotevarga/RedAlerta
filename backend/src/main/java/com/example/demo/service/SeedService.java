@@ -49,24 +49,18 @@ public class SeedService {
     private void seedRutasYHorarios() {
         if (rutaRepository.count() > 0) return;
 
-        Ruta corralChaihuin = rutaRepository.save(new Ruta(null, "Corral", "Chaihuín", true, 800));
-        Ruta corralHuiro = rutaRepository.save(new Ruta(null, "Corral", "Huiro", true, 1200));
-        Ruta corralLaAguada = rutaRepository.save(new Ruta(null, "Corral", "La Aguada", true, 500));
+        Ruta busPublico = rutaRepository.save(new Ruta(null, "Corral", "Chaihuín", true, 900));
+        Ruta busPrivado = rutaRepository.save(new Ruta(null, "Corral", "Huiro", false, 1600));
 
         String[] diasSemana = {"Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"};
 
         for (String dia : diasSemana) {
-            horarioFijoRepository.save(new HorarioFijo(null, corralChaihuin, dia, LocalTime.of(7, 0)));
-            horarioFijoRepository.save(new HorarioFijo(null, corralChaihuin, dia, LocalTime.of(12, 0)));
-            horarioFijoRepository.save(new HorarioFijo(null, corralChaihuin, dia, LocalTime.of(17, 0)));
+            horarioFijoRepository.save(new HorarioFijo(null, busPublico, dia, LocalTime.of(7, 0)));
+            horarioFijoRepository.save(new HorarioFijo(null, busPublico, dia, LocalTime.of(12, 0)));
+            horarioFijoRepository.save(new HorarioFijo(null, busPublico, dia, LocalTime.of(17, 0)));
 
-            horarioFijoRepository.save(new HorarioFijo(null, corralHuiro, dia, LocalTime.of(8, 30)));
-            horarioFijoRepository.save(new HorarioFijo(null, corralHuiro, dia, LocalTime.of(14, 0)));
-
-            horarioFijoRepository.save(new HorarioFijo(null, corralLaAguada, dia, LocalTime.of(6, 30)));
-            horarioFijoRepository.save(new HorarioFijo(null, corralLaAguada, dia, LocalTime.of(11, 0)));
-            horarioFijoRepository.save(new HorarioFijo(null, corralLaAguada, dia, LocalTime.of(16, 0)));
-            horarioFijoRepository.save(new HorarioFijo(null, corralLaAguada, dia, LocalTime.of(19, 0)));
+            horarioFijoRepository.save(new HorarioFijo(null, busPrivado, dia, LocalTime.of(8, 30)));
+            horarioFijoRepository.save(new HorarioFijo(null, busPrivado, dia, LocalTime.of(14, 0)));
         }
     }
 }

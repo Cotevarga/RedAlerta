@@ -17,13 +17,22 @@ public class KeepAliveService {
     @Value("${app.render-url:}")
     private String renderUrl;
 
+    private String sanitizar(String url) {
+        if (url == null) return "";
+        return url.trim()
+            .replaceAll("^\\[+", "")
+            .replaceAll("\\]+$", "")
+            .replaceAll("[<>\"']", "");
+    }
+
     @Scheduled(fixedRate = 300000)
     public void mantenerDespierto() {
-        if (renderUrl == null || renderUrl.isBlank()) return;
+        String limpia = sanitizar(renderUrl);
+        if (limpia.isBlank()) return;
 
         try {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(renderUrl + "/api/transporte/reporte?sector=Corral&dia=Lunes"))
+                    .uri(URI.create(limpia + "/api/transporte/reporte?sector=Corral&dia=Lunes"))
                     .GET()
                     .build();
             client.send(request, HttpResponse.BodyHandlers.discarding());
